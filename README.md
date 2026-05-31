@@ -9,20 +9,23 @@ Built for the overlooked moment in vibe coding: you want to stay near the termin
 ## How it works
 
 ```
-┌─────────────────────────┬──────────────┐
-│                         │              │
-│   AI Agent (Kiro/CC)    │   🎮 Game    │
-│                         │   (2048)     │
-│                         │              │
-│  "agent needs input"    │  auto-pause  │
-│  ← focus snaps back     │              │
-└─────────────────────────┴──────────────┘
+┌─────────────────────────────────────┐
+│                                     │
+│         🎮 Game (full screen)       │  ← agent is working, you play
+│                                     │
+└─────────────────────────────────────┘
+              agent done ↓ auto-switch
+┌─────────────────────────────────────┐
+│                                     │
+│       🤖 Agent (full screen)        │  ← respond to agent
+│                                     │
+└─────────────────────────────────────┘
 ```
 
-1. You start a coding session → Paws opens a game in a side pane
-2. Agent works → you play
-3. Agent needs input → game auto-pauses, focus returns to agent
-4. You respond → switch back to game when ready
+1. `paws start` → game launches in background
+2. `paws play` (or CMD+G) → game zooms full screen, you play
+3. Agent finishes → auto-zooms back to agent, full screen
+4. You respond, agent starts working → switch back to game
 
 ## Requirements
 
@@ -44,10 +47,15 @@ cd paws
 ## Usage
 
 ```fish
-# Start a paws session (opens game in right pane)
+# Start paws (game launches in background)
 paws start
 
-# Stop (kills game pane)
+# Switch to game full screen
+paws play    # or press CMD+G
+
+# Agent auto-switches back when it needs input
+
+# Done for the day
 paws stop
 ```
 
