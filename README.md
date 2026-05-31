@@ -2,7 +2,7 @@
 
 > *Pause* when your agent needs you. *Play* while it works.
 
-A terminal companion for AI coding agents. Paws opens a side-pane game in your terminal that **auto-pauses when your agent needs input** and resumes when you're done.
+A terminal companion for AI coding agents. Paws gives you an immersive full-screen game to play while your agent is working — and auto-pauses when it needs your input.
 
 Built for the overlooked moment in vibe coding: you want to stay near the terminal, but the agent is thinking and you have nothing to do.
 
@@ -11,77 +11,120 @@ Built for the overlooked moment in vibe coding: you want to stay near the termin
 ```
 ┌─────────────────────────────────────┐
 │                                     │
-│         🎮 Game (full screen)       │  ← agent is working, you play
+│      🎮 Game (full screen)          │  ← agent is working, you play
+│                                     │
 │                                     │
 └─────────────────────────────────────┘
-              agent done ↓ auto-switch
+         agent done → game pauses, overlay appears:
+
 ┌─────────────────────────────────────┐
 │                                     │
-│       🤖 Agent (full screen)        │  ← respond to agent
+│   ┌───────────────────────────┐     │
+│   │  🐾 Agent done!           │     │
+│   │  Press Enter to go back   │     │
+│   │  Auto-return in 3...      │     │
+│   └───────────────────────────┘     │
+│                                     │
+└─────────────────────────────────────┘
+         user presses Enter (or countdown ends):
+
+┌─────────────────────────────────────┐
+│                                     │
+│      🤖 Agent (full screen)         │  ← read output, respond
+│                                     │
 │                                     │
 └─────────────────────────────────────┘
 ```
 
-1. `paws start` → game launches in background
-2. `paws play` (or CMD+G) → game zooms full screen, you play
-3. Agent finishes → auto-zooms back to agent, full screen
-4. You respond, agent starts working → switch back to game
+1. You start a coding session → Paws is ready in the background
+2. You send a prompt, then press **CMD+G** → game zooms full screen
+3. Agent finishes (stop hook) → game pauses, overlay shows "Agent done"
+4. You press Enter (or wait 3s in auto mode) → switches back to agent
+5. Repeat
+
+## Architecture
+
+```
+paws (Rust binary)
+├── wrapper TUI        — manages game lifecycle, pause overlay, countdown
+├── game rotation      — picks a random game each session/interval
+└── kaku integration   — zoom-pane for full-screen switching
+
+kiro stop hook         — signals paws when agent is done
+kaku lua config        — CMD+G keybinding
+```
+
+### The Rust Wrapper
+
+A lightweight TUI (ratatui) that:
+- Spawns and embeds a terminal game (2048, etc.) via PTY
+- On "agent done" signal: pauses game, renders overlay with message + countdown
+- On Enter / countdown end: triggers `kaku cli zoom-pane` to switch back to agent
+- Listens for signals via a simple file watch or Unix socket
+
+### Game Rotation
+
+- Multiple games available (2048, sudoku, snake, word games, pet interactions, trivia)
+- Each day (or every few hours), Paws randomly picks one
+- Gives a sense of freshness and surprise
+- User can also manually pick via a launcher menu
+
+### Modes
+
+| Mode | Behavior |
+|------|----------|
+| **Manual** (default) | Game pauses + overlay. User presses Enter to go back. |
+| **Auto** | Game pauses + overlay with 3s countdown. Auto-switches back. |
 
 ## Requirements
 
-- [Kaku terminal](https://github.com/tw93/kaku) (WezTerm fork with full CLI control)
-- [fish shell](https://fishshell.com/) (scripts are in fish; bash port welcome)
-- A terminal game (e.g. `2048-cli` — `brew install 2048`)
+- [Kaku terminal](https://github.com/tw93/kaku) (WezTerm fork)
+- [Kiro CLI](https://kiro.dev) (primary) or Claude Code (planned)
 
 ## Install
 
 ```fish
-# Clone
+# TODO: brew install paws (goal)
 git clone https://github.com/MisterBrookT/paws.git
 cd paws
-
-# Install the launcher + hook
 ./install.fish
 ```
 
 ## Usage
 
 ```fish
-# Start paws (game launches in background)
-paws start
+# Paws starts automatically with your agent session
+# (or manually: paws start)
 
-# Switch to game full screen
-paws play    # or press CMD+G
+# Switch to game (full screen)
+# Press CMD+G
 
-# Agent auto-switches back when it needs input
+# Agent finishes → auto-pauses game, shows overlay
+# Press Enter to go back (or wait for auto-return)
 
-# Done for the day
+# End session
 paws stop
 ```
 
-## Supported agents
+## Supported Agents
 
-- **Kiro CLI** — via hooks (primary)
-- **Claude Code** — via notification hooks (planned)
+- **Kiro CLI** — via stop hook (primary, working)
+- **Claude Code** — via notification hook (planned)
 
-## Project structure
+## Roadmap
 
-```
-paws/
-├── bin/paws.fish          # Main launcher script
-├── hooks/                 # Agent hook scripts
-│   └── kiro/             # Kiro-specific hooks
-├── lua/paws.lua          # Kaku Lua config snippet
-├── docs/design.tex       # Original design document
-├── install.fish          # Installer
-└── README.md
-```
+- [x] Core: zoom-pane full-screen switching
+- [x] Kiro stop hook integration
+- [ ] Rust wrapper TUI with pause overlay + countdown
+- [ ] Multi-game rotation (daily/hourly random pick)
+- [ ] Pet mode (ambient companion that reacts to agent state)
+- [ ] `brew install paws`
+- [ ] Claude Code support
+- [ ] Auto-start with Kaku (Lua startup hook)
 
 ## Design
 
-The full design rationale (problem space, ecosystem survey, technical architecture) is in [`docs/design.tex`](docs/design.tex).
-
-Key insight: Kaku's `kaku cli` **is** the IPC layer — no custom sockets, no Rust code, no tmux. The entire implementation is a fish script + a hook + a Lua snippet.
+Full design rationale in [`docs/design.tex`](docs/design.tex).
 
 ## License
 
