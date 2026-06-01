@@ -17,13 +17,15 @@ You are installing Paws for the user. Work from a local clone of this repo
 
 ## 1. Install a game
 
-The game tab runs `paws`, a tiny Rust launcher that rotates among installed
-games. Build it and install a few games:
+The game tab runs `paws`, a tiny Rust launcher that shows a centered menu of
+installed games (plus 🎲 Random rotation and a ⚙ Settings screen). Build it and
+install some games:
 
 ```bash
-cargo install --path .                      # builds `paws` onto PATH
-brew install c2048 nudoku vitetris          # 2048 / sudoku / tetris
-paws --list                                 # confirm which games are detected
+cargo install --path .                                          # builds `paws` onto PATH
+cargo install --git https://github.com/MisterBrookT/paws-games  # Jump High, Pinball, Earth Online, Knowledge
+brew install vitetris                                           # optional: Tetris
+paws --list                                                     # confirm which games are detected
 ```
 
 If `cargo` is missing, point the user to https://rustup.rs first.
@@ -87,8 +89,8 @@ chmod +x <REPO>/hooks/kiro/paws-signal.sh
 ## 5. Finish
 
 Tell the user to **reload Kaku (CMD+Shift+R)** — Kaku does NOT auto-reload — then:
-- **CMD+G** — first press opens a game picker; after that it toggles agent ↔ game.
-- **CMD+SHIFT+P** — re-open the picker to change the game.
+- **CMD+G** — opens the game tab (a centered menu: games · 🎲 Random · ⚙ Settings); after that it toggles agent ↔ game.
+- **CMD+SHIFT+P** — close the game tab and re-open the menu.
 
 (Don't use CMD+SHIFT+G — Kaku already binds it to lazygit.)
 

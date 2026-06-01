@@ -3,32 +3,36 @@ mod lang;
 use std::env;
 use std::fs;
 use std::io::{self, Read, Write};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crossterm::{
-    event::{KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags},
+    event::{
+        self, Event, KeyCode, KeyEventKind, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
+        PushKeyboardEnhancementFlags,
+    },
     terminal::{
-        disable_raw_mode, enable_raw_mode, supports_keyboard_enhancement, EnterAlternateScreen,
-        LeaveAlternateScreen,
+        disable_raw_mode, enable_raw_mode, size as term_size, supports_keyboard_enhancement,
+        EnterAlternateScreen, LeaveAlternateScreen,
     },
     ExecutableCommand,
 };
-use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
+use portable_pty::{CommandBuilder, MasterPty, NativePtySystem, PtySize, PtySystem};
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Paragraph},
+    widgets::{Block, Borders, Paragraph},
     Frame, Terminal,
 };
 
 const SESSIONS_DIR: &str = "/tmp/paws-sessions";
-const GAME_COLS: u16 = 80;
-const GAME_ROWS: u16 = 24;
-const POLL_MS: u64 = 50;
+const POLL_MS: u64 = 33;
+const STALE_SECS: u64 = 6 * 3600;
+const DEFAULT_ROTATE_HOURS: u64 = 5;
 
 struct Game {
     name: &'static str,
@@ -37,26 +41,11 @@ struct Game {
 }
 
 const GAMES: &[Game] = &[
-    Game {
-        name: "Vitetris (Tetris)",
-        cmd: "tetris",
-        brew_hint: "brew install vitetris",
-    },
-    Game {
-        name: "Jump High",
-        cmd: "jump-high",
-        brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games",
-    },
-    Game {
-        name: "Earth Online",
-        cmd: "earth-online",
-        brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games",
-    },
-    Game {
-        name: "Pinball",
-        cmd: "pinball",
-        brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games",
-    },
+    Game { name: "Tetris", cmd: "tetris", brew_hint: "brew install vitetris" },
+    Game { name: "Jump High", cmd: "jump-high", brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games" },
+    Game { name: "Pinball", cmd: "pinball", brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games" },
+    Game { name: "Earth Online", cmd: "earth-online", brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games" },
+    Game { name: "Knowledge", cmd: "learn", brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games" },
 ];
 
 fn is_installed(cmd: &str) -> bool {
@@ -65,68 +54,259 @@ fn is_installed(cmd: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn epoch_day() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-        / 86400
+fn now_secs() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
 }
 
-fn pick_index(day: u64, count: usize) -> usize {
-    (day as usize) % count
+fn pick_index(bucket: u64, count: usize) -> usize {
+    (bucket as usize) % count
+}
+
+fn rotate_path() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".config/paws/rotate_hours")
+}
+
+fn rotate_hours() -> u64 {
+    fs::read_to_string(rotate_path())
+        .ok()
+        .and_then(|s| s.trim().parse::<u64>().ok())
+        .map(|h| h.clamp(1, 24))
+        .unwrap_or(DEFAULT_ROTATE_HOURS)
+}
+
+fn save_rotate_hours(h: u64) {
+    let path = rotate_path();
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::write(path, h.clamp(1, 24).to_string());
+}
+
+/// Pick a game for "Random", rotating by the user-configured interval.
+fn resolve_random(installed: &[&Game]) -> String {
+    let bucket = now_secs() / (rotate_hours() * 3600);
+    installed[pick_index(bucket, installed.len().max(1))].cmd.to_string()
 }
 
 fn main() -> io::Result<()> {
-    // First-run language selection (not in --list mode)
-    if !env::args().any(|a| a == "--list") && !lang::is_set() {
+    let list_mode = env::args().any(|a| a == "--list");
+
+    if !list_mode && !lang::is_set() {
         lang::pick_interactive()?;
     }
 
-    // --list mode
-    if env::args().any(|a| a == "--list") {
+    if list_mode {
         println!("Paws game list:");
         for g in GAMES {
             let status = if is_installed(g.cmd) { "✓" } else { "✗" };
-            println!(
-                "  [{status}] {:<20} cmd: {:<10} install: {}",
-                g.name, g.cmd, g.brew_hint
-            );
+            println!("  [{status}] {:<14} cmd: {:<12} install: {}", g.name, g.cmd, g.brew_hint);
         }
         return Ok(());
     }
 
-    // Pick game: explicit arg or daily rotation
-    let explicit_cmd = env::args().nth(1).filter(|a| !a.starts_with('-'));
-    let game_cmd: String = if let Some(cmd) = explicit_cmd {
+    let installed: Vec<&Game> = GAMES.iter().filter(|g| is_installed(g.cmd)).collect();
+
+    // Game choice: explicit arg (e.g. `paws jump-high`), else the centered menu.
+    let explicit = env::args().nth(1).filter(|a| !a.starts_with('-'));
+    let game_cmd: String = if let Some(cmd) = explicit {
         cmd
     } else {
-        let installed: Vec<&Game> = GAMES.iter().filter(|g| is_installed(g.cmd)).collect();
         if installed.is_empty() {
-            println!("🐾 No games installed! Install one to play:");
+            println!("🐾 No games installed yet. Install one to play:");
             for g in GAMES {
                 println!("  {} → {}", g.name, g.brew_hint);
             }
             return Ok(());
         }
-        let idx = pick_index(epoch_day(), installed.len());
-        installed[idx].cmd.to_string()
+        match pick_game_menu(&installed)? {
+            Some(cmd) => cmd,
+            None => return Ok(()),
+        }
     };
 
-    // Spawn game in PTY
+    host_game(&game_cmd)
+}
+
+/// Centered, keyboard-driven menu: games + Random + Settings. Returns the chosen
+/// game command, or None if the user backed out.
+fn pick_game_menu(installed: &[&Game]) -> io::Result<Option<String>> {
+    enum Item {
+        Game(String, String),
+        Random,
+        Settings,
+    }
+    let mut items: Vec<Item> = installed
+        .iter()
+        .map(|g| Item::Game(g.name.to_string(), g.cmd.to_string()))
+        .collect();
+    items.push(Item::Random);
+    items.push(Item::Settings);
+
+    let labels: Vec<String> = items
+        .iter()
+        .map(|it| match it {
+            Item::Game(name, _) => format!("🎮  {name}"),
+            Item::Random => "🎲  Random".to_string(),
+            Item::Settings => "⚙   Settings".to_string(),
+        })
+        .collect();
+
+    enable_raw_mode()?;
+    io::stdout().execute(EnterAlternateScreen)?;
+    let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
+
+    let mut selected = 0usize;
+    let mut in_settings = false;
+    let mut hours = rotate_hours();
+
+    let result = loop {
+        terminal.draw(|f| {
+            if in_settings {
+                draw_settings(f, hours);
+            } else {
+                draw_menu(f, &labels, selected);
+            }
+        })?;
+
+        if !event::poll(Duration::from_millis(120))? {
+            continue;
+        }
+        let Event::Key(key) = event::read()? else { continue };
+        if key.kind != KeyEventKind::Press {
+            continue;
+        }
+
+        if in_settings {
+            match key.code {
+                KeyCode::Left | KeyCode::Char('-') | KeyCode::Char('h') => {
+                    hours = (hours - 1).clamp(1, 24);
+                    save_rotate_hours(hours);
+                }
+                KeyCode::Right | KeyCode::Char('+') | KeyCode::Char('=') | KeyCode::Char('l') => {
+                    hours = (hours + 1).clamp(1, 24);
+                    save_rotate_hours(hours);
+                }
+                KeyCode::Enter | KeyCode::Esc | KeyCode::Char('q') => in_settings = false,
+                _ => {}
+            }
+            continue;
+        }
+
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') => {
+                selected = if selected == 0 { labels.len() - 1 } else { selected - 1 };
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                selected = (selected + 1) % labels.len();
+            }
+            KeyCode::Enter => match &items[selected] {
+                Item::Game(_, cmd) => break Some(cmd.clone()),
+                Item::Random => break Some(resolve_random(installed)),
+                Item::Settings => in_settings = true,
+            },
+            KeyCode::Esc | KeyCode::Char('q') => break None,
+            _ => {}
+        }
+    };
+
+    disable_raw_mode()?;
+    io::stdout().execute(LeaveAlternateScreen)?;
+    Ok(result)
+}
+
+fn draw_menu(f: &mut Frame, labels: &[String], selected: usize) {
+    let area = f.area();
+    f.render_widget(Block::default().style(Style::default().bg(Color::Rgb(18, 18, 26))), area);
+
+    let box_w = 44u16.min(area.width.saturating_sub(2));
+    let box_h = (labels.len() as u16 + 8).min(area.height.saturating_sub(2));
+    let content = centered_rect(box_w, box_h, area);
+
+    let mut lines = vec![
+        Line::raw(""),
+        Line::from(Span::styled(
+            "🐾  P A W S",
+            Style::default().fg(Color::Rgb(255, 200, 120)).add_modifier(Modifier::BOLD),
+        )),
+        Line::from(Span::styled(
+            "your agent's coffee break",
+            Style::default().fg(Color::Rgb(120, 120, 140)),
+        )),
+        Line::raw(""),
+    ];
+
+    for (i, label) in labels.iter().enumerate() {
+        let (style, prefix) = if i == selected {
+            (Style::default().fg(Color::Rgb(120, 220, 160)).add_modifier(Modifier::BOLD), "▸  ")
+        } else {
+            (Style::default().fg(Color::Rgb(180, 180, 195)), "   ")
+        };
+        lines.push(Line::from(Span::styled(format!("{prefix}{label}"), style)));
+    }
+
+    lines.push(Line::raw(""));
+    lines.push(Line::from(Span::styled(
+        "↑↓ move · Enter play · q quit",
+        Style::default().fg(Color::Rgb(100, 100, 120)),
+    )));
+
+    let para = Paragraph::new(lines).alignment(Alignment::Center).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Rgb(90, 80, 120))),
+    );
+    f.render_widget(para, content);
+}
+
+fn draw_settings(f: &mut Frame, hours: u64) {
+    let area = f.area();
+    f.render_widget(Block::default().style(Style::default().bg(Color::Rgb(18, 18, 26))), area);
+
+    let content = centered_rect(44u16.min(area.width.saturating_sub(2)), 11, area);
+    let plural = if hours == 1 { "hour" } else { "hours" };
+    let lines = vec![
+        Line::raw(""),
+        Line::from(Span::styled(
+            "⚙  Settings",
+            Style::default().fg(Color::Rgb(255, 200, 120)).add_modifier(Modifier::BOLD),
+        )),
+        Line::raw(""),
+        Line::from(Span::styled(
+            "Random rotation",
+            Style::default().fg(Color::Rgb(180, 180, 195)),
+        )),
+        Line::from(Span::styled(
+            format!("every  {hours}  {plural}"),
+            Style::default().fg(Color::Rgb(120, 220, 160)).add_modifier(Modifier::BOLD),
+        )),
+        Line::raw(""),
+        Line::from(Span::styled(
+            "←  −     +  →     Enter back",
+            Style::default().fg(Color::Rgb(100, 100, 120)),
+        )),
+    ];
+    let para = Paragraph::new(lines).alignment(Alignment::Center).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Rgb(90, 80, 120))),
+    );
+    f.render_widget(para, content);
+}
+
+fn host_game(game_cmd: &str) -> io::Result<()> {
+    let (tcols, trows) = term_size().unwrap_or((80, 25));
+    let gcols = tcols.max(20);
+    let grows = trows.saturating_sub(1).max(10); // reserve the top row for the HUD
+
     let pty_system = NativePtySystem::default();
     let pair = pty_system
-        .openpty(PtySize {
-            rows: GAME_ROWS,
-            cols: GAME_COLS,
-            pixel_width: 0,
-            pixel_height: 0,
-        })
+        .openpty(PtySize { rows: grows, cols: gcols, pixel_width: 0, pixel_height: 0 })
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
-    let mut cmd = CommandBuilder::new(&game_cmd);
+    let mut cmd = CommandBuilder::new(game_cmd);
     cmd.env("TERM", "xterm-256color");
-
     let _child = pair
         .slave
         .spawn_command(cmd)
@@ -142,13 +322,11 @@ fn main() -> io::Result<()> {
         .try_clone_reader()
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
-    // VT100 parser for game screen
-    let parser = Arc::new(Mutex::new(vt100::Parser::new(GAME_ROWS, GAME_COLS, 0)));
+    let parser = Arc::new(Mutex::new(vt100::Parser::new(grows, gcols, 0)));
     let parser_clone = Arc::clone(&parser);
     let running = Arc::new(AtomicBool::new(true));
     let running_reader = Arc::clone(&running);
 
-    // Reader thread: PTY → vt100 parser. Game exit (EOF) ends the session.
     std::thread::spawn(move || {
         let mut buf = [0u8; 4096];
         loop {
@@ -160,9 +338,7 @@ fn main() -> io::Result<()> {
         running_reader.store(false, Ordering::SeqCst);
     });
 
-    // Setup terminal. Enable the kitty keyboard protocol ONLY for our own
-    // crossterm game that needs real key-release events (jump-high). Other games
-    // (e.g. tetris) expect legacy bytes, so we leave it off for them.
+    // Enable the kitty protocol ONLY for jump-high (needs real key-release).
     enable_raw_mode()?;
     let kitty = game_cmd == "jump-high" && supports_keyboard_enhancement().unwrap_or(false);
     if kitty {
@@ -171,8 +347,7 @@ fn main() -> io::Result<()> {
         ));
     }
 
-    // Input thread: raw stdin → PTY. Passthrough preserves key-repeat / kitty
-    // sequences so the hosted game gets the full key stream.
+    // Raw stdin → PTY passthrough (preserves key-repeat / kitty sequences).
     std::thread::spawn(move || {
         let mut stdin = io::stdin();
         let mut buf = [0u8; 1024];
@@ -190,19 +365,15 @@ fn main() -> io::Result<()> {
     });
 
     io::stdout().execute(EnterAlternateScreen)?;
-    let backend = CrosstermBackend::new(io::stdout());
-    let mut terminal = Terminal::new(backend)?;
+    let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
+    let result = run_loop(&mut terminal, &parser, &running, &pair.master);
 
-    let result = run_loop(&mut terminal, &parser, &running);
-
-    // Cleanup
     if kitty {
         let _ = io::stdout().execute(PopKeyboardEnhancementFlags);
     }
     io::stdout().execute(LeaveAlternateScreen)?;
     disable_raw_mode()?;
     drop(pair.master);
-
     result
 }
 
@@ -210,10 +381,23 @@ fn run_loop(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     parser: &Arc<Mutex<vt100::Parser>>,
     running: &Arc<AtomicBool>,
+    master: &Box<dyn MasterPty + Send>,
 ) -> io::Result<()> {
+    let (mut pcols, mut prows) = (0u16, 0u16);
     while running.load(Ordering::SeqCst) {
+        let sz = terminal.size().unwrap_or(ratatui::layout::Size::new(80, 25));
+        let gcols = sz.width.max(1);
+        let grows = sz.height.saturating_sub(1).max(1);
+        if gcols != pcols || grows != prows {
+            let _ = master.resize(PtySize { rows: grows, cols: gcols, pixel_width: 0, pixel_height: 0 });
+            if let Ok(mut p) = parser.lock() {
+                p.set_size(grows, gcols);
+            }
+            pcols = gcols;
+            prows = grows;
+        }
         terminal.draw(|f| {
-            draw_game(f, parser);
+            draw_game(f, parser, grows, gcols);
             draw_hud(f);
         })?;
         std::thread::sleep(Duration::from_millis(POLL_MS));
@@ -221,37 +405,24 @@ fn run_loop(
     Ok(())
 }
 
-fn draw_game(f: &mut Frame, parser: &Arc<Mutex<vt100::Parser>>) {
+fn draw_game(f: &mut Frame, parser: &Arc<Mutex<vt100::Parser>>, rows: u16, cols: u16) {
     let area = f.area();
-
-    // Dark background
-    f.render_widget(
-        Block::default().style(Style::default().bg(Color::Black)),
-        area,
-    );
-
-    // Center the game area
-    let game_area = centered_rect(GAME_COLS, GAME_ROWS, area);
+    // Game fills the screen below the HUD row; only this region gets a dark fill,
+    // so the HUD row keeps the terminal's own background (no black block).
+    let game_area = Rect::new(0, 1, cols.min(area.width), rows.min(area.height.saturating_sub(1)));
+    f.render_widget(Block::default().style(Style::default().bg(Color::Black)), game_area);
 
     let screen = parser.lock().unwrap();
-    let mut lines: Vec<Line> = Vec::with_capacity(GAME_ROWS as usize);
-
-    for row in 0..GAME_ROWS {
+    let mut lines: Vec<Line> = Vec::with_capacity(game_area.height as usize);
+    for row in 0..game_area.height {
         let mut spans: Vec<Span> = Vec::new();
         let mut col = 0u16;
-        while col < GAME_COLS {
-            let cell = screen.screen().cell(row, col).unwrap();
-            let ch = if cell.has_contents() {
-                cell.contents()
-            } else {
-                " ".to_string()
-            };
-
-            let mut style = Style::default();
-            let fg = cell.fgcolor();
-            let bg = cell.bgcolor();
-            style = style.fg(vt_color_to_ratatui(fg));
-            style = style.bg(vt_color_to_ratatui(bg));
+        while col < game_area.width {
+            let Some(cell) = screen.screen().cell(row, col) else { break };
+            let ch = if cell.has_contents() { cell.contents() } else { " ".to_string() };
+            let mut style = Style::default()
+                .fg(vt_color_to_ratatui(cell.fgcolor()))
+                .bg(vt_color_to_ratatui(cell.bgcolor()));
             if cell.bold() {
                 style = style.add_modifier(Modifier::BOLD);
             }
@@ -261,28 +432,28 @@ fn draw_game(f: &mut Frame, parser: &Arc<Mutex<vt100::Parser>>) {
             if cell.inverse() {
                 style = style.add_modifier(Modifier::REVERSED);
             }
-
-            let width = unicode_width(&ch);
+            let width = unicode_width(&ch).max(1) as u16;
             spans.push(Span::styled(ch, style));
-            col += width.max(1) as u16;
+            col += width;
         }
         lines.push(Line::from(spans));
     }
-
-    let paragraph = Paragraph::new(lines);
-    f.render_widget(paragraph, game_area);
+    f.render_widget(Paragraph::new(lines), game_area);
 }
 
 fn draw_hud(f: &mut Frame) {
-    let area = f.area();
-    let entries = match fs::read_dir(SESSIONS_DIR) {
-        Ok(rd) => rd,
-        Err(_) => return,
-    };
+    let Ok(entries) = fs::read_dir(SESSIONS_DIR) else { return };
 
-    let mut running = 0u16;
-    let mut done = 0u16;
+    let (mut running, mut done) = (0u16, 0u16);
     for entry in entries.flatten() {
+        // Skip stale files left by dead sessions so the counts stay accurate.
+        if let Ok(meta) = entry.metadata() {
+            if let Ok(age) = SystemTime::now().duration_since(meta.modified().unwrap_or(UNIX_EPOCH)) {
+                if age.as_secs() > STALE_SECS {
+                    continue;
+                }
+            }
+        }
         if let Ok(content) = fs::read_to_string(entry.path()) {
             match content.trim() {
                 "busy" => running += 1,
@@ -296,51 +467,46 @@ fn draw_hud(f: &mut Frame) {
         return;
     }
 
-    let lang = lang::current();
-    let (working_label, waiting_label) = match lang {
+    let (working_label, waiting_label) = match lang::current() {
         lang::Lang::En => ("working", "waiting for you"),
         lang::Lang::Zh => ("运行中", "等你输入"),
         lang::Lang::Ja => ("実行中", "入力待ち"),
         lang::Lang::Ko => ("실행 중", "입력 대기"),
     };
 
-    let mut spans = Vec::new();
+    let ms = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+    let mut spans = vec![Span::styled("🐾 ", Style::default())];
+
     if running > 0 {
+        // Animated spinner: motion = "still working".
+        const SPIN: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+        let frame = SPIN[((ms / 80) % 10) as usize];
         spans.push(Span::styled(
-            format!("● {} {}", running, working_label),
-            Style::default().fg(Color::Rgb(190, 180, 160)).add_modifier(Modifier::BOLD),
+            format!("{frame} {running} {working_label}"),
+            Style::default().fg(Color::Rgb(120, 200, 230)).add_modifier(Modifier::BOLD),
         ));
     }
     if running > 0 && done > 0 {
-        spans.push(Span::raw("  "));
+        spans.push(Span::raw("   "));
     }
     if done > 0 {
-        let blink_on = (std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_millis()
-            / 500)
-            % 2
-            == 0;
-        let fg = if blink_on {
+        // Settled (no motion) + gentle flash: "it's your turn".
+        let fg = if (ms / 500) % 2 == 0 {
             Color::Rgb(245, 160, 50)
         } else {
             Color::Rgb(255, 245, 220)
         };
-        let style = Style::default().fg(fg).add_modifier(Modifier::BOLD);
-        spans.push(Span::styled(format!("✓ {} {}", done, waiting_label), style));
+        spans.push(Span::styled(
+            format!("✓ {done} {waiting_label}"),
+            Style::default().fg(fg).add_modifier(Modifier::BOLD),
+        ));
     }
 
     let line = Line::from(spans);
-    let text_width = line.width() as u16;
-    let hud_area = Rect::new(
-        area.width.saturating_sub(text_width + 1),
-        0,
-        text_width + 1,
-        1,
-    );
-    let paragraph = Paragraph::new(vec![line]).alignment(Alignment::Right);
-    f.render_widget(paragraph, hud_area);
+    let w = line.width() as u16 + 1;
+    let area = f.area();
+    let hud = Rect::new(area.width.saturating_sub(w), 0, w, 1);
+    f.render_widget(Paragraph::new(vec![line]).alignment(Alignment::Right), hud);
 }
 
 fn centered_rect(w: u16, h: u16, area: Rect) -> Rect {
@@ -368,17 +534,12 @@ mod tests {
     #[test]
     fn pick_index_deterministic() {
         assert_eq!(pick_index(19874, 3), pick_index(19874, 3));
-        let results: Vec<usize> = (0..3).map(|d| pick_index(d, 3)).collect();
-        assert_eq!(results, vec![0, 1, 2]);
+        assert_eq!((0..3).map(|d| pick_index(d, 3)).collect::<Vec<_>>(), vec![0, 1, 2]);
     }
 
     #[test]
     fn centered_rect_works() {
-        let area = Rect::new(0, 0, 100, 40);
-        let r = centered_rect(80, 24, area);
-        assert_eq!(r.x, 10);
-        assert_eq!(r.y, 8);
-        assert_eq!(r.width, 80);
-        assert_eq!(r.height, 24);
+        let r = centered_rect(80, 24, Rect::new(0, 0, 100, 40));
+        assert_eq!((r.x, r.y, r.width, r.height), (10, 8, 80, 24));
     }
 }
