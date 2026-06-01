@@ -18,7 +18,7 @@ local PAWS_CHOICES = {
   { label = '🎲 Random (rotates every few hours)', id = 'random' },
   { label = 'Tetris (俄罗斯方块)', id = 'tetris' },
   { label = 'Jump High (跳跳跳)', id = 'jump-high' },
-  { label = '🌍 地球Online (real-life side quests)', id = '--earth-online' },
+  { label = '🌍 地球Online (real-life side quests)', id = 'earth-online' },
 }
 
 local function resolve_game(id)

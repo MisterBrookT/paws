@@ -40,11 +40,11 @@ The HUD shows session state (running / done) and flashes on completion. No auto-
      "userPromptSubmit": [{ "command": "/absolute/path/to/paws-signal.sh busy" }]
    }
    ```
-4. Install a game (`brew install vitetris` or `cargo install --git https://github.com/MisterBrookT/jump-high`), reload Kaku (CMD+Shift+R), press CMD+G.
+4. Install a game (`brew install vitetris` or `cargo install --git https://github.com/MisterBrookT/paws-games`), reload Kaku (CMD+Shift+R), press CMD+G.
 
 ## Games
 
-Tetris · [Jump High](https://github.com/MisterBrookT/jump-high) · 🌍 地球Online (real-life side quests) · 🎲 Random rotation
+Tetris · [Jump High](https://github.com/MisterBrookT/paws-games) · Earth Online (real-life side quests) · 🎲 Random rotation
 
 ## How it works
 

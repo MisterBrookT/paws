@@ -1,4 +1,3 @@
-mod earth_online;
 mod lang;
 
 use std::env;
@@ -42,12 +41,12 @@ const GAMES: &[Game] = &[
     Game {
         name: "Jump High",
         cmd: "jump-high",
-        brew_hint: "cargo install --git https://github.com/MisterBrookT/jump-high",
+        brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games",
     },
     Game {
-        name: "地球Online",
-        cmd: "paws --earth-online",
-        brew_hint: "(built-in)",
+        name: "Earth Online",
+        cmd: "earth-online",
+        brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games",
     },
 ];
 
@@ -70,11 +69,6 @@ fn pick_index(day: u64, count: usize) -> usize {
 }
 
 fn main() -> io::Result<()> {
-    // --earth-online mode (built-in)
-    if env::args().any(|a| a == "--earth-online") {
-        return earth_online::run();
-    }
-
     // First-run language selection (not in --list mode)
     if !env::args().any(|a| a == "--list") && !lang::is_set() {
         lang::pick_interactive()?;
@@ -293,7 +287,7 @@ fn draw_hud(f: &mut Frame) {
     if running > 0 {
         spans.push(Span::styled(
             format!("● {} {}", running, working_label),
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            Style::default().fg(Color::Rgb(190, 180, 160)).add_modifier(Modifier::BOLD),
         ));
     }
     if running > 0 && done > 0 {
@@ -304,16 +298,16 @@ fn draw_hud(f: &mut Frame) {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis()
-            / 600)
+            / 500)
             % 2
             == 0;
-        let mut style = Style::default()
-            .fg(Color::Green)
-            .add_modifier(Modifier::BOLD);
-        if blink_on {
-            style = style.bg(Color::Rgb(0, 70, 0)).add_modifier(Modifier::REVERSED);
-        }
-        spans.push(Span::styled(format!(" ✓ {} {} ", done, waiting_label), style));
+        let fg = if blink_on {
+            Color::Rgb(245, 160, 50)
+        } else {
+            Color::Rgb(255, 245, 220)
+        };
+        let style = Style::default().fg(fg).add_modifier(Modifier::BOLD);
+        spans.push(Span::styled(format!("✓ {} {}", done, waiting_label), style));
     }
 
     let line = Line::from(spans);
