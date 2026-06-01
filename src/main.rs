@@ -31,7 +31,7 @@ use ratatui::{
 
 const SESSIONS_DIR: &str = "/tmp/paws-sessions";
 const POLL_MS: u64 = 33;
-const STALE_SECS: u64 = 6 * 3600;
+const STALE_SECS: u64 = 2 * 3600;
 const DEFAULT_ROTATE_HOURS: u64 = 5;
 
 struct Game {
@@ -56,6 +56,11 @@ fn is_installed(cmd: &str) -> bool {
 
 fn now_secs() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
+}
+
+/// True if the process is still running (used to count only live agent sessions).
+fn pid_alive(pid: i32) -> bool {
+    pid > 0 && unsafe { libc::kill(pid, 0) } == 0
 }
 
 fn pick_index(bucket: u64, count: usize) -> usize {
@@ -446,20 +451,36 @@ fn draw_hud(f: &mut Frame) {
 
     let (mut running, mut done) = (0u16, 0u16);
     for entry in entries.flatten() {
-        // Skip stale files left by dead sessions so the counts stay accurate.
-        if let Ok(meta) = entry.metadata() {
-            if let Ok(age) = SystemTime::now().duration_since(meta.modified().unwrap_or(UNIX_EPOCH)) {
-                if age.as_secs() > STALE_SECS {
-                    continue;
-                }
+        let path = entry.path();
+        let Ok(content) = fs::read_to_string(&path) else { continue };
+        let mut parts = content.split_whitespace();
+        let state = parts.next().unwrap_or("");
+        let pid: i32 = parts.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+
+        if pid > 0 {
+            // Closed session → process is gone: clean up and skip.
+            if !pid_alive(pid) {
+                let _ = fs::remove_file(&path);
+                continue;
+            }
+        } else {
+            // Legacy file without a PID: fall back to mtime staleness.
+            let stale = entry
+                .metadata()
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .and_then(|t| SystemTime::now().duration_since(t).ok())
+                .map(|d| d.as_secs() > STALE_SECS)
+                .unwrap_or(false);
+            if stale {
+                continue;
             }
         }
-        if let Ok(content) = fs::read_to_string(entry.path()) {
-            match content.trim() {
-                "busy" => running += 1,
-                "done" => done += 1,
-                _ => {}
-            }
+
+        match state {
+            "busy" => running += 1,
+            "done" => done += 1,
+            _ => {}
         }
     }
 
