@@ -91,14 +91,14 @@ Claude Code can read it too.)
 - [x] Native tab-based switching (pure Lua, `wezterm.mux`, `wezterm.GLOBAL`)
 - [x] Game picker via `InputSelector` (CMD+G first run; CMD+SHIFT+P to re-pick)
 - [x] One-step install via agent skill
-- [x] `paws` Rust launcher with daily game rotation (2048 / sudoku / tetris)
+- [x] Rust wrapper: hosts game in PTY, **centered** rendering, **pause overlay + 3s countdown** on agent finish
+- [x] [Jump High](https://github.com/MisterBrookT/jump-high) — a Doodle Jump-style terminal game (ratatui)
+- [x] Daily game rotation (Tetris / Jump High)
 
-### Next (priority order)
-1. **Verify auto-return on device** — confirm the OSC `user-var` signal from the
-   Kiro hook reaches Kaku (`userPromptSubmit` → game, `stop` → agent).
-2. **Pause overlay** — pause the game and show an overlay + countdown for auto-return.
-3. **More & better games** — grow the curated set; drop 2048 once richer games land.
-4. **Claude Code support** — notification / stop hooks.
+### Next
+1. **More games** — grow the curated set with fun, interruptible games.
+2. **Claude Code support** — notification / stop hooks.
+3. **`brew install paws`** — Homebrew formula for one-command install.
 
 ## Design doc
 
