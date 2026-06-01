@@ -227,7 +227,7 @@ fn draw_menu(f: &mut Frame, labels: &[String], selected: usize) {
     f.render_widget(Block::default().style(Style::default().bg(Color::Rgb(18, 18, 26))), area);
 
     let box_w = 44u16.min(area.width.saturating_sub(2));
-    let box_h = (labels.len() as u16 + 8).min(area.height.saturating_sub(2));
+    let box_h = (labels.len() as u16 + 9).min(area.height.saturating_sub(2));
     let content = centered_rect(box_w, box_h, area);
 
     let mut lines = vec![
@@ -256,6 +256,10 @@ fn draw_menu(f: &mut Frame, labels: &[String], selected: usize) {
     lines.push(Line::from(Span::styled(
         "↑↓ move · Enter play · q quit",
         Style::default().fg(Color::Rgb(100, 100, 120)),
+    )));
+    lines.push(Line::from(Span::styled(
+        "⌘G switch · ⌘⇧P re-pick · ⌘H help",
+        Style::default().fg(Color::Rgb(90, 90, 110)),
     )));
 
     let para = Paragraph::new(lines).alignment(Alignment::Center).block(

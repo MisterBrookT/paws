@@ -91,6 +91,7 @@ chmod +x <REPO>/hooks/kiro/paws-signal.sh
 Tell the user to **reload Kaku (CMD+Shift+R)** — Kaku does NOT auto-reload — then:
 - **CMD+G** — opens the game tab (a centered menu: games · 🎲 Random · ⚙ Settings); after that it toggles agent ↔ game.
 - **CMD+SHIFT+P** — close the game tab and re-open the menu.
+- **CMD+H** — open the Paws repo in your browser (to file an issue / say hi).
 
 (Don't use CMD+SHIFT+G — Kaku already binds it to lazygit.)
 

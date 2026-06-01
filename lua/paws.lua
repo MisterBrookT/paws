@@ -63,3 +63,11 @@ table.insert(config.keys, {
     paws_spawn(window, agent_id)
   end),
 })
+-- CMD+H: open the Paws repo (file an issue, say hi)
+table.insert(config.keys, {
+  key = 'h',
+  mods = 'CMD',
+  action = wezterm.action_callback(function()
+    os.execute("open 'https://github.com/MisterBrookT/paws'")
+  end),
+})
