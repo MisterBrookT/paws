@@ -1,10 +1,18 @@
 English | [中文](README.zh.md)
 
+<div align="center">
+
 # 🐾 Paws
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Built for Kaku](https://img.shields.io/badge/Built_for-Kaku-blue)](https://github.com/tw93/kaku) [![Made with Lua & Rust](https://img.shields.io/badge/Made_with-Lua_&_Rust-orange)]() [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/MisterBrookT/paws/pulls) [![GitHub stars](https://img.shields.io/github/stars/MisterBrookT/paws?style=social)](https://github.com/MisterBrookT/paws)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Built for Kaku](https://img.shields.io/badge/Built_for-Kaku-blue)](https://github.com/tw93/kaku) [![Made with Lua & Rust](https://img.shields.io/badge/Made_with-Lua_&_Rust-orange)]() [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/MisterBrookT/paws/pulls) [![GitHub Stars](https://img.shields.io/github/stars/MisterBrookT/paws?style=flat&color=yellow)](https://github.com/MisterBrookT/paws/stargazers)
 
-> *Pause* when your agent needs you. *Play* while it works.
+*Pause* when your agent needs you. *Play* while it works.
+
+Play games while your AI agent works. A status HUD tells you when to come back.
+
+</div>
+
+<p align="center"><img src="docs/demo.gif" width="600" alt="Paws demo"></p>
 
 A terminal companion for AI coding agents. Paws gives you an immersive full-screen game to play while your agent is working — with a live status bar showing which of your agent sessions are running and which are done, so you flip back exactly when you want to.
 
