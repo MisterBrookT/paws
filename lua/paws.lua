@@ -18,6 +18,7 @@ local PAWS_CHOICES = {
   { label = '🎲 Random (rotates every few hours)', id = 'random' },
   { label = 'Tetris (俄罗斯方块)', id = 'tetris' },
   { label = 'Jump High (跳跳跳)', id = 'jump-high' },
+  { label = 'Pinball (弹球)', id = 'pinball' },
   { label = '🌍 地球Online (real-life side quests)', id = 'earth-online' },
 }
 

@@ -52,6 +52,11 @@ const GAMES: &[Game] = &[
         cmd: "earth-online",
         brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games",
     },
+    Game {
+        name: "Pinball",
+        cmd: "pinball",
+        brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games",
+    },
 ];
 
 fn is_installed(cmd: &str) -> bool {
