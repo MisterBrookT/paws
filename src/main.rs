@@ -1,4 +1,5 @@
 mod earth_online;
+mod lang;
 
 use std::env;
 use std::fs;
@@ -72,6 +73,11 @@ fn main() -> io::Result<()> {
     // --earth-online mode (built-in)
     if env::args().any(|a| a == "--earth-online") {
         return earth_online::run();
+    }
+
+    // First-run language selection (not in --list mode)
+    if !env::args().any(|a| a == "--list") && !lang::is_set() {
+        lang::pick_interactive()?;
     }
 
     // --list mode
@@ -268,10 +274,18 @@ fn draw_hud(f: &mut Frame) {
         return;
     }
 
+    let lang = lang::current();
+    let (working_label, waiting_label) = match lang {
+        lang::Lang::En => ("working", "waiting for you"),
+        lang::Lang::Zh => ("运行中", "等你输入"),
+        lang::Lang::Ja => ("実行中", "入力待ち"),
+        lang::Lang::Ko => ("실행 중", "입력 대기"),
+    };
+
     let mut spans = Vec::new();
     if running > 0 {
         spans.push(Span::styled(
-            format!("● {} running", running),
+            format!("● {} {}", running, working_label),
             Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
         ));
     }
@@ -279,7 +293,6 @@ fn draw_hud(f: &mut Frame) {
         spans.push(Span::raw("  "));
     }
     if done > 0 {
-        // Flash the "done" badge so it's hard to miss in manual mode
         let blink_on = (std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
@@ -293,7 +306,7 @@ fn draw_hud(f: &mut Frame) {
         if blink_on {
             style = style.bg(Color::Rgb(0, 70, 0)).add_modifier(Modifier::REVERSED);
         }
-        spans.push(Span::styled(format!(" ✓ {} done! ", done), style));
+        spans.push(Span::styled(format!(" ✓ {} {} ", done, waiting_label), style));
     }
 
     let line = Line::from(spans);

@@ -15,46 +15,230 @@ use ratatui::{
     Terminal,
 };
 
+use crate::lang::{self, Lang};
+
 struct Quest {
     emoji: &'static str,
-    title: &'static str,
-    desc: &'static str,
-    time: &'static str,
+    title: [&'static str; 4],      // En, Zh, Ja, Ko
+    desc: [&'static [&'static str]; 4],
+    time: [&'static str; 4],
+}
+
+impl Quest {
+    fn t_title(&self, lang: Lang) -> &'static str {
+        self.title[lang_idx(lang)]
+    }
+    fn t_desc(&self, lang: Lang) -> &'static [&'static str] {
+        self.desc[lang_idx(lang)]
+    }
+    fn t_time(&self, lang: Lang) -> &'static str {
+        self.time[lang_idx(lang)]
+    }
+}
+
+fn lang_idx(lang: Lang) -> usize {
+    match lang {
+        Lang::En => 0,
+        Lang::Zh => 1,
+        Lang::Ja => 2,
+        Lang::Ko => 3,
+    }
 }
 
 const QUESTS: &[Quest] = &[
-    Quest { emoji: "🏃", title: "做5分钟运动", desc: "俯卧撑、平板支撑、或开合跳，选一个做5分钟", time: "5 min" },
-    Quest { emoji: "📞", title: "给一个朋友打电话", desc: "随便聊几分钟，问问他们最近怎么样", time: "5 min" },
-    Quest { emoji: "🚶", title: "下楼走走", desc: "出门散步10分钟，看看周围的世界", time: "10 min" },
-    Quest { emoji: "💧", title: "喝杯水", desc: "站起来倒杯水，顺便伸个懒腰", time: "1 min" },
-    Quest { emoji: "🧘", title: "冥想3分钟", desc: "闭眼，专注呼吸，什么都不想", time: "3 min" },
-    Quest { emoji: "📖", title: "读几页书", desc: "拿起手边的书，读3-5页", time: "5 min" },
-    Quest { emoji: "🎵", title: "听一首歌", desc: "完整地听一首喜欢的歌，不做别的", time: "4 min" },
-    Quest { emoji: "🪟", title: "看看窗外", desc: "站到窗边，看看外面的天空和树", time: "2 min" },
-    Quest { emoji: "✍️", title: "写三件感恩的事", desc: "拿张纸写下今天感恩的三件小事", time: "3 min" },
-    Quest { emoji: "🧹", title: "整理桌面", desc: "花2分钟把桌上的东西归位", time: "2 min" },
-    Quest { emoji: "🫁", title: "深呼吸10次", desc: "4秒吸气，7秒屏息，8秒呼气", time: "3 min" },
-    Quest { emoji: "🤸", title: "拉伸一下", desc: "站起来做2分钟全身拉伸", time: "2 min" },
-    Quest { emoji: "🌱", title: "给植物浇水", desc: "如果你有植物的话", time: "1 min" },
-    Quest { emoji: "👀", title: "20-20-20护眼", desc: "看20英尺外的东西20秒，重复3次", time: "1 min" },
+    Quest {
+        emoji: "🚶",
+        title: ["Take a Walk Downstairs", "去楼下走走", "外に出て歩こう", "밖에 나가 걸어보자"],
+        desc: [
+            &[
+                "Put down the keyboard, go downstairs and walk around the block.",
+                "No phone — just walk, feel your steps and breath.",
+            ],
+            &[
+                "放下键盘，下楼绕着小区或街区走一圈。",
+                "不看手机，只是走，感受脚步和呼吸。",
+            ],
+            &[
+                "キーボードを置いて、外に出て近所を一周歩こう。",
+                "スマホは見ない。ただ歩いて、足取りと呼吸を感じよう。",
+            ],
+            &[
+                "키보드를 내려놓고, 밖에 나가 동네를 한 바퀴 걸어보자.",
+                "폰은 보지 말고, 그냥 걸으며 발걸음과 호흡을 느껴보자.",
+            ],
+        ],
+        time: ["10 min", "10 分钟", "10 分", "10 분"],
+    },
+    Quest {
+        emoji: "📞",
+        title: ["Call a Good Friend", "给好朋友打个电话", "友達に電話しよう", "좋은 친구에게 전화하자"],
+        desc: [
+            &[
+                "Think of someone you miss but haven't reached out to.",
+                "Call them — no reason needed, just ask \"how've you been?\"",
+            ],
+            &[
+                "想一个最近想念、但没联系的人。",
+                "打过去，不为什么，就问问「最近怎么样」。",
+            ],
+            &[
+                "最近会いたいけど連絡していない人を思い浮かべよう。",
+                "電話して、理由はいらない。「最近どう？」って聞くだけ。",
+            ],
+            &[
+                "최근 보고 싶지만 연락 못 한 사람을 떠올려보자.",
+                "전화해서, 이유 없이 그냥 \"요즘 어때?\"라고 물어보자.",
+            ],
+        ],
+        time: ["10 min", "10 分钟", "10 分", "10 분"],
+    },
+    Quest {
+        emoji: "🤸",
+        title: ["Move Your Body", "动一动身体", "体を動かそう", "몸을 움직이자"],
+        desc: [
+            &[
+                "Wall Angels ×15: back against wall, slide arms up & down — fixes rounded shoulders",
+                "Chin Tucks ×10: retract chin horizontally (make a double chin) — counters forward head",
+                "Plank ×3 sets, 30s each: brace your core, don't let hips sag",
+                "Push-ups ×10: hands shoulder-width, lower until chest nearly touches floor",
+            ],
+            &[
+                "靠墙天使 ×15：背贴墙，手臂贴墙上下滑动，专治圆肩",
+                "收下巴 ×10：下巴水平后缩（像双下巴），对抗头前倾",
+                "平板支撑 ×3组，每组 30 秒：收紧核心，别塌腰",
+                "俯卧撑 ×10：手与肩同宽，下到胸贴近地面",
+            ],
+            &[
+                "ウォールエンジェル ×15：壁に背をつけ、腕を壁に沿って上下 — 巻き肩改善",
+                "チンタック ×10：顎を水平に引く（二重顎を作る感じ）— 前傾対策",
+                "プランク ×3セット、各30秒：体幹を締めて、腰を落とさない",
+                "腕立て伏せ ×10：手は肩幅、胸が床に近づくまで下ろす",
+            ],
+            &[
+                "월 엔젤 ×15: 벽에 등을 대고 팔을 위아래로 — 굽은 어깨 교정",
+                "턱 당기기 ×10: 턱을 수평으로 당기기(이중턱 만들기) — 거북목 대응",
+                "플랭크 ×3세트, 각 30초: 코어 조이고, 허리 처지지 않게",
+                "푸시업 ×10: 손은 어깨 너비, 가슴이 바닥에 닿을 때까지",
+            ],
+        ],
+        time: ["10 min", "10 分钟", "10 分", "10 분"],
+    },
+    Quest {
+        emoji: "🍑",
+        title: ["Treat Yourself", "犒劳一下自己", "自分にご褒美", "나를 위한 간식"],
+        desc: [
+            &[
+                "Go out and buy some fruit or snack you've been craving.",
+                "Eat it slowly when you're back — not in front of a screen.",
+            ],
+            &[
+                "出门买点你最近想吃的水果或小零食。",
+                "回来慢慢吃，不要边吃边看屏幕。",
+            ],
+            &[
+                "最近食べたかった果物やお菓子を買いに行こう。",
+                "戻ったらゆっくり食べよう。画面を見ながらはダメ。",
+            ],
+            &[
+                "요즘 먹고 싶었던 과일이나 간식을 사러 나가자.",
+                "돌아와서 천천히 먹자. 화면 보면서 먹지 말고.",
+            ],
+        ],
+        time: ["15 min", "15 分钟", "15 分", "15 분"],
+    },
+    Quest {
+        emoji: "🧘",
+        title: ["Sit Still for Five Minutes", "静坐五分钟", "5分間静かに座ろう", "5분간 가만히 앉자"],
+        desc: [
+            &[
+                "Find a quiet spot, sit down, close your eyes.",
+                "Inhale 4s, exhale 6s; when your mind wanders, gently bring focus back to breath.",
+            ],
+            &[
+                "找个安静的地方坐下，闭眼。",
+                "吸气 4 秒，呼气 6 秒；走神了就轻轻把注意力带回呼吸。",
+            ],
+            &[
+                "静かな場所に座って、目を閉じよう。",
+                "4秒吸って、6秒吐く。気が散ったら、そっと呼吸に意識を戻そう。",
+            ],
+            &[
+                "조용한 곳에 앉아서 눈을 감자.",
+                "4초 들이쉬고, 6초 내쉬기. 딴생각이 나면 부드럽게 호흡으로 돌아오자.",
+            ],
+        ],
+        time: ["5 min", "5 分钟", "5 分", "5 분"],
+    },
+    Quest {
+        emoji: "🎬",
+        title: ["Record a Gratitude Clip", "录一段感谢", "感謝を録画しよう", "감사 영상을 찍자"],
+        desc: [
+            &[
+                "Open your phone camera, face yourself: who are you grateful for lately? Why?",
+                "You don't have to send it — keep it for yourself.",
+            ],
+            &[
+                "打开手机摄像头，对着自己说：最近想感谢谁？为什么？",
+                "录完不用发，留给自己看。",
+            ],
+            &[
+                "スマホのカメラを開いて自分に向けて：最近感謝したい人は？なぜ？",
+                "送らなくていい。自分のために残そう。",
+            ],
+            &[
+                "폰 카메라를 켜고 자신을 향해: 최근 감사한 사람은? 왜?",
+                "보내지 않아도 돼. 나를 위해 남겨두자.",
+            ],
+        ],
+        time: ["5 min", "5 分钟", "5 分", "5 분"],
+    },
 ];
 
 fn pseudo_random(seed: u64) -> usize {
-    // Simple hash to get a pseudo-random index
     let h = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
     (h >> 33) as usize % QUESTS.len()
 }
 
 fn pick_quest() -> usize {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .subsec_nanos() as u64;
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    pseudo_random(secs ^ nanos)
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    pseudo_random(now.as_secs() ^ now.subsec_nanos() as u64)
+}
+
+fn controls_line(lang: Lang) -> Vec<Span<'static>> {
+    let (reroll, pause, quit) = match lang {
+        Lang::En => ("reroll", "pause", "quit"),
+        Lang::Zh => ("换一个", "暂停", "退出"),
+        Lang::Ja => ("別のへ", "一時停止", "終了"),
+        Lang::Ko => ("다시", "일시정지", "종료"),
+    };
+    let key_style = Style::default().fg(Color::Rgb(180, 140, 200)).add_modifier(Modifier::BOLD);
+    let txt_style = Style::default().fg(Color::Rgb(100, 100, 120));
+    vec![
+        Span::styled("r", key_style),
+        Span::styled(format!(" {}  ", reroll), txt_style),
+        Span::styled("p", key_style),
+        Span::styled(format!(" {}  ", pause), txt_style),
+        Span::styled("q", key_style),
+        Span::styled(format!(" {}", quit), txt_style),
+    ]
+}
+
+fn box_title(lang: Lang) -> &'static str {
+    match lang {
+        Lang::En => " 🌍 Earth Online · Side Quest ",
+        Lang::Zh => " 🌍 地球Online · Side Quest ",
+        Lang::Ja => " 🌍 地球オンライン · サイドクエスト ",
+        Lang::Ko => " 🌍 지구 온라인 · 사이드 퀘스트 ",
+    }
+}
+
+fn paused_label(lang: Lang) -> &'static str {
+    match lang {
+        Lang::En => "⏸  paused",
+        Lang::Zh => "⏸  已暂停",
+        Lang::Ja => "⏸  一時停止中",
+        Lang::Ko => "⏸  일시정지",
+    }
 }
 
 pub fn run() -> io::Result<()> {
@@ -63,6 +247,7 @@ pub fn run() -> io::Result<()> {
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
 
+    let lang = lang::current();
     let mut quest_idx = pick_quest();
     let mut start = Instant::now();
     let mut paused = false;
@@ -79,72 +264,66 @@ pub fn run() -> io::Result<()> {
             let quest = &QUESTS[quest_idx];
             let area = f.area();
 
-            // Background
             f.render_widget(
                 Block::default().style(Style::default().bg(Color::Rgb(20, 20, 30))),
                 area,
             );
 
-            let content_height = 11u16;
-            let content_width = 50u16.min(area.width.saturating_sub(4));
+            let desc_lines = quest.t_desc(lang);
+            // box height = 3 (border top + title + blank) + desc_lines + 1 (time) + 1 (border bottom)
+            let box_h = (desc_lines.len() as u16) + 5;
+            let content_height = box_h + 6; // box + spacers + timer + pause + controls
+            let content_width = 64u16.min(area.width.saturating_sub(4));
             let cx = area.x + area.width.saturating_sub(content_width) / 2;
             let cy = area.y + area.height.saturating_sub(content_height) / 2;
             let content_area = Rect::new(cx, cy, content_width, content_height);
 
-            // Layout: title block, timer, controls
             let chunks = Layout::vertical([
-                Constraint::Length(5), // quest box
-                Constraint::Length(1), // spacer
-                Constraint::Length(1), // timer
-                Constraint::Length(1), // spacer
-                Constraint::Length(1), // pause status
-                Constraint::Length(1), // spacer
-                Constraint::Length(1), // controls
+                Constraint::Length(box_h),
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
             ])
             .split(content_area);
 
             // Quest box
-            let title_line = Line::from(vec![
-                Span::styled(
-                    format!("  {} {} ", quest.emoji, quest.title),
-                    Style::default()
-                        .fg(Color::Rgb(255, 230, 180))
-                        .add_modifier(Modifier::BOLD),
-                ),
-            ]);
-            let desc_line = Line::from(Span::styled(
-                quest.desc,
-                Style::default().fg(Color::Rgb(180, 180, 200)),
-            ));
-            let time_line = Line::from(Span::styled(
-                format!("⏱  {}", quest.time),
+            let mut para_lines = vec![
+                Line::raw(""),
+                Line::from(Span::styled(
+                    format!("  {} {} ", quest.emoji, quest.t_title(lang)),
+                    Style::default().fg(Color::Rgb(255, 230, 180)).add_modifier(Modifier::BOLD),
+                )),
+                Line::raw(""),
+            ];
+            for dl in desc_lines {
+                para_lines.push(Line::from(Span::styled(
+                    *dl,
+                    Style::default().fg(Color::Rgb(180, 180, 200)),
+                )));
+            }
+            para_lines.push(Line::from(Span::styled(
+                format!("⏱  {}", quest.t_time(lang)),
                 Style::default().fg(Color::Rgb(130, 160, 180)),
-            ));
+            )));
 
-            let quest_block = Paragraph::new(vec![
-                Line::raw(""),
-                title_line,
-                Line::raw(""),
-                desc_line,
-                time_line,
-            ])
-            .alignment(Alignment::Center)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Rgb(80, 80, 120)))
-                    .title(" 🌍 地球Online · Side Quest ")
-                    .title_style(Style::default().fg(Color::Rgb(120, 180, 140))),
-            );
+            let quest_block = Paragraph::new(para_lines)
+                .alignment(Alignment::Center)
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Rgb(80, 80, 120)))
+                        .title(box_title(lang))
+                        .title_style(Style::default().fg(Color::Rgb(120, 180, 140))),
+                );
             f.render_widget(quest_block, chunks[0]);
 
             // Timer
             let secs_total = elapsed.as_secs();
-            let mins = secs_total / 60;
-            let secs = secs_total % 60;
-            let timer_text = format!("{}:{:02}", mins, secs);
             let timer = Paragraph::new(Line::from(Span::styled(
-                timer_text,
+                format!("{}:{:02}", secs_total / 60, secs_total % 60),
                 Style::default().fg(Color::Rgb(100, 140, 160)),
             )))
             .alignment(Alignment::Center);
@@ -152,25 +331,17 @@ pub fn run() -> io::Result<()> {
 
             // Pause indicator
             if paused {
-                let pause_text = Paragraph::new(Line::from(Span::styled(
-                    "⏸  已暂停",
+                let p = Paragraph::new(Line::from(Span::styled(
+                    paused_label(lang),
                     Style::default().fg(Color::Rgb(200, 160, 80)),
                 )))
                 .alignment(Alignment::Center);
-                f.render_widget(pause_text, chunks[4]);
+                f.render_widget(p, chunks[4]);
             }
 
             // Controls
-            let controls = Paragraph::new(Line::from(vec![
-                Span::styled("r", Style::default().fg(Color::Rgb(180, 140, 200)).add_modifier(Modifier::BOLD)),
-                Span::styled(" 换一个  ", Style::default().fg(Color::Rgb(100, 100, 120))),
-                Span::styled("p", Style::default().fg(Color::Rgb(180, 140, 200)).add_modifier(Modifier::BOLD)),
-                Span::styled(" 暂停  ", Style::default().fg(Color::Rgb(100, 100, 120))),
-                Span::styled("q", Style::default().fg(Color::Rgb(180, 140, 200)).add_modifier(Modifier::BOLD)),
-                Span::styled(" 退出", Style::default().fg(Color::Rgb(100, 100, 120))),
-            ]))
-            .alignment(Alignment::Center);
-            f.render_widget(controls, chunks[6]);
+            let ctrl = Paragraph::new(Line::from(controls_line(lang))).alignment(Alignment::Center);
+            f.render_widget(ctrl, chunks[6]);
         })?;
 
         if event::poll(Duration::from_millis(200))? {
@@ -181,13 +352,11 @@ pub fn run() -> io::Result<()> {
                 match key.code {
                     KeyCode::Char('q') | KeyCode::Esc => break,
                     KeyCode::Char('r') => {
-                        // Re-roll: pick a different quest
                         let old = quest_idx;
                         quest_idx = pick_quest();
                         if quest_idx == old {
                             quest_idx = (quest_idx + 1) % QUESTS.len();
                         }
-                        // Reset timer
                         elapsed_when_paused = Duration::ZERO;
                         start = Instant::now();
                         paused = false;
