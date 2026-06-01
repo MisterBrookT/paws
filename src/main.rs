@@ -4,11 +4,11 @@ mod lang;
 use std::env;
 use std::fs;
 use std::io::{self, Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEventKind},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
@@ -142,17 +142,35 @@ fn main() -> io::Result<()> {
     // VT100 parser for game screen
     let parser = Arc::new(Mutex::new(vt100::Parser::new(GAME_ROWS, GAME_COLS, 0)));
     let parser_clone = Arc::clone(&parser);
+    let running = Arc::new(AtomicBool::new(true));
+    let running_reader = Arc::clone(&running);
 
-    // Reader thread: PTY → vt100 parser
+    // Reader thread: PTY → vt100 parser. Game exit (EOF) ends the session.
     std::thread::spawn(move || {
         let mut buf = [0u8; 4096];
         loop {
             match pty_reader.read(&mut buf) {
-                Ok(0) => break,
+                Ok(0) | Err(_) => break,
+                Ok(n) => parser_clone.lock().unwrap().process(&buf[..n]),
+            }
+        }
+        running_reader.store(false, Ordering::SeqCst);
+    });
+
+    // Input thread: raw stdin → PTY. Passthrough preserves OS key-repeat, so
+    // "hold to charge" games receive a steady stream of bytes while a key is held.
+    std::thread::spawn(move || {
+        let mut stdin = io::stdin();
+        let mut buf = [0u8; 1024];
+        loop {
+            match stdin.read(&mut buf) {
+                Ok(0) | Err(_) => break,
                 Ok(n) => {
-                    parser_clone.lock().unwrap().process(&buf[..n]);
+                    if pty_writer.write_all(&buf[..n]).is_err() {
+                        break;
+                    }
+                    let _ = pty_writer.flush();
                 }
-                Err(_) => break,
             }
         }
     });
@@ -163,7 +181,7 @@ fn main() -> io::Result<()> {
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
 
-    let result = run_loop(&mut terminal, &parser, &mut pty_writer);
+    let result = run_loop(&mut terminal, &parser, &running);
 
     // Cleanup
     disable_raw_mode()?;
@@ -176,27 +194,16 @@ fn main() -> io::Result<()> {
 fn run_loop(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     parser: &Arc<Mutex<vt100::Parser>>,
-    pty_writer: &mut Box<dyn Write + Send>,
+    running: &Arc<AtomicBool>,
 ) -> io::Result<()> {
-    loop {
+    while running.load(Ordering::SeqCst) {
         terminal.draw(|f| {
             draw_game(f, parser);
             draw_hud(f);
         })?;
-
-        if event::poll(Duration::from_millis(POLL_MS))? {
-            if let Event::Key(key) = event::read()? {
-                if key.kind != KeyEventKind::Press {
-                    continue;
-                }
-                // Forward every key straight to the game
-                if let Some(bytes) = key_to_bytes(key.code) {
-                    let _ = pty_writer.write_all(&bytes);
-                    let _ = pty_writer.flush();
-                }
-            }
-        }
+        std::thread::sleep(Duration::from_millis(POLL_MS));
     }
+    Ok(())
 }
 
 fn draw_game(f: &mut Frame, parser: &Arc<Mutex<vt100::Parser>>) {
@@ -327,28 +334,6 @@ fn centered_rect(w: u16, h: u16, area: Rect) -> Rect {
     Rect::new(x, y, w.min(area.width), h.min(area.height))
 }
 
-fn key_to_bytes(code: KeyCode) -> Option<Vec<u8>> {
-    match code {
-        KeyCode::Char(c) => {
-            let mut buf = [0u8; 4];
-            let s = c.encode_utf8(&mut buf);
-            Some(s.as_bytes().to_vec())
-        }
-        KeyCode::Enter => Some(b"\r".to_vec()),
-        KeyCode::Backspace => Some(b"\x7f".to_vec()),
-        KeyCode::Tab => Some(b"\t".to_vec()),
-        KeyCode::Esc => Some(b"\x1b".to_vec()),
-        KeyCode::Up => Some(b"\x1b[A".to_vec()),
-        KeyCode::Down => Some(b"\x1b[B".to_vec()),
-        KeyCode::Right => Some(b"\x1b[C".to_vec()),
-        KeyCode::Left => Some(b"\x1b[D".to_vec()),
-        KeyCode::Home => Some(b"\x1b[H".to_vec()),
-        KeyCode::End => Some(b"\x1b[F".to_vec()),
-        KeyCode::Delete => Some(b"\x1b[3~".to_vec()),
-        _ => None,
-    }
-}
-
 fn vt_color_to_ratatui(color: vt100::Color) -> Color {
     match color {
         vt100::Color::Default => Color::Reset,
@@ -380,12 +365,5 @@ mod tests {
         assert_eq!(r.y, 8);
         assert_eq!(r.width, 80);
         assert_eq!(r.height, 24);
-    }
-
-    #[test]
-    fn key_to_bytes_basic() {
-        assert_eq!(key_to_bytes(KeyCode::Char('a')), Some(b"a".to_vec()));
-        assert_eq!(key_to_bytes(KeyCode::Enter), Some(b"\r".to_vec()));
-        assert_eq!(key_to_bytes(KeyCode::Up), Some(b"\x1b[A".to_vec()));
     }
 }
