@@ -15,11 +15,10 @@ use ratatui::{
     layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Clear, Paragraph},
+    widgets::{Block, Paragraph},
     Frame, Terminal,
 };
 
-const SIGNAL_PATH: &str = "/tmp/paws-signal";
 const SESSIONS_DIR: &str = "/tmp/paws-sessions";
 const GAME_COLS: u16 = 80;
 const GAME_ROWS: u16 = 24;
@@ -88,9 +87,6 @@ fn main() -> io::Result<()> {
     let idx = pick_index(epoch_day(), installed.len());
     let game = installed[idx];
 
-    // Clean up any stale signal
-    let _ = fs::remove_file(SIGNAL_PATH);
-
     // Spawn game in PTY
     let pty_system = NativePtySystem::default();
     let pair = pty_system
@@ -144,8 +140,7 @@ fn main() -> io::Result<()> {
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
 
-    let mut paused = false;
-    let result = run_loop(&mut terminal, &parser, &mut pty_writer, &mut paused);
+    let result = run_loop(&mut terminal, &parser, &mut pty_writer);
 
     // Cleanup
     disable_raw_mode()?;
@@ -159,59 +154,23 @@ fn run_loop(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     parser: &Arc<Mutex<vt100::Parser>>,
     pty_writer: &mut Box<dyn Write + Send>,
-    paused: &mut bool,
 ) -> io::Result<()> {
     loop {
-        // Draw
         terminal.draw(|f| {
             draw_game(f, parser);
             draw_hud(f);
-            if *paused {
-                draw_pause_banner(f);
-            }
         })?;
 
-        // Poll events
         if event::poll(Duration::from_millis(POLL_MS))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind != KeyEventKind::Press {
                     continue;
                 }
-                if *paused {
-                    if key.code == KeyCode::Enter {
-                        // Resume game
-                        let _ = pty_writer.write_all(b"p");
-                        let _ = pty_writer.flush();
-                        *paused = false;
-                    }
-                } else {
-                    // Forward key to PTY
-                    if let Some(bytes) = key_to_bytes(key.code) {
-                        let _ = pty_writer.write_all(&bytes);
-                        let _ = pty_writer.flush();
-                    }
+                // Forward every key straight to the game
+                if let Some(bytes) = key_to_bytes(key.code) {
+                    let _ = pty_writer.write_all(&bytes);
+                    let _ = pty_writer.flush();
                 }
-            }
-        }
-
-        // Poll signal file
-        if let Ok(content) = fs::read_to_string(SIGNAL_PATH) {
-            let sig = content.trim();
-            if sig == "done" && !*paused {
-                let _ = fs::remove_file(SIGNAL_PATH);
-                // Pause the game
-                let _ = pty_writer.write_all(b"p");
-                let _ = pty_writer.flush();
-                *paused = true;
-            } else if sig == "busy" && *paused {
-                let _ = fs::remove_file(SIGNAL_PATH);
-                // Resume the game
-                let _ = pty_writer.write_all(b"p");
-                let _ = pty_writer.flush();
-                *paused = false;
-            } else if sig == "busy" || sig == "done" {
-                // Signal doesn't change state, just clean up
-                let _ = fs::remove_file(SIGNAL_PATH);
             }
         }
     }
@@ -269,27 +228,6 @@ fn draw_game(f: &mut Frame, parser: &Arc<Mutex<vt100::Parser>>) {
     f.render_widget(paragraph, game_area);
 }
 
-fn draw_pause_banner(f: &mut Frame) {
-    let area = f.area();
-    let banner_w = 34u16.min(area.width);
-    let banner_h = 3u16.min(area.height);
-    let banner_area = centered_rect(banner_w, banner_h, area);
-
-    f.render_widget(Clear, banner_area);
-    let block = Block::bordered()
-        .style(Style::default().bg(Color::Rgb(30, 30, 40)).fg(Color::White));
-    let text = vec![Line::from(Span::styled(
-        "🐾 Agent 完成了 · 切回时继续",
-        Style::default()
-            .fg(Color::Yellow)
-            .add_modifier(Modifier::BOLD),
-    ))];
-    let paragraph = Paragraph::new(text)
-        .block(block)
-        .alignment(Alignment::Center);
-    f.render_widget(paragraph, banner_area);
-}
-
 fn draw_hud(f: &mut Frame) {
     let area = f.area();
     let entries = match fs::read_dir(SESSIONS_DIR) {
@@ -317,17 +255,28 @@ fn draw_hud(f: &mut Frame) {
     if running > 0 {
         spans.push(Span::styled(
             format!("● {} running", running),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
         ));
     }
     if running > 0 && done > 0 {
         spans.push(Span::raw("  "));
     }
     if done > 0 {
-        spans.push(Span::styled(
-            format!("✓ {} done", done),
-            Style::default().fg(Color::Green),
-        ));
+        // Flash the "done" badge so it's hard to miss in manual mode
+        let blink_on = (std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+            / 600)
+            % 2
+            == 0;
+        let mut style = Style::default()
+            .fg(Color::Green)
+            .add_modifier(Modifier::BOLD);
+        if blink_on {
+            style = style.bg(Color::Rgb(0, 70, 0)).add_modifier(Modifier::REVERSED);
+        }
+        spans.push(Span::styled(format!(" ✓ {} done! ", done), style));
     }
 
     let line = Line::from(spans);

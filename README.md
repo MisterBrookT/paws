@@ -6,52 +6,52 @@ English | [中文](README.zh.md)
 
 > *Pause* when your agent needs you. *Play* while it works.
 
-A terminal companion for AI coding agents. Paws gives you an immersive full-screen game to play while your agent is working — and auto-switches back the moment it needs your input.
+A terminal companion for AI coding agents. Paws gives you an immersive full-screen game to play while your agent is working — with a live status bar showing which of your agent sessions are running and which are done, so you flip back exactly when you want to.
 
 Built for the overlooked moment in vibe coding: you want to stay near the terminal, but the agent is thinking and you have nothing to do.
 
 ## How it works
 
 ```
-       press CMD+G                    agent finishes a turn
-  ┌──────────────────┐            ┌──────────────────────────┐
-  │  🎮 Game tab      │  ───────>  │  🤖 Agent tab            │
-  │  (full window)    │  <───────  │  (your split layout)     │
-  └──────────────────┘   CMD+G     └──────────────────────────┘
+        press CMD+G                       a session finishes
+  ┌──────────────────────┐          ┌──────────────────────────┐
+  │  🎮 Game tab          │          │   ● 1 running  ✓ 1 done!  │  ← live HUD
+  │  (full window)        │  CMD+G   │   (flashes when done)     │
+  │  ● 2 running          │ ───────> │                           │
+  └──────────────────────┘          └──────────────────────────┘
 ```
+
+You switch with **CMD+G** whenever you like. A status HUD inside the game shows
+every agent session's state (running / done) and **flashes when one finishes**,
+so you never miss it — no surprise auto-jumping while you're mid-game.
 
 ### Key bindings
 
 | Key | Action |
 |-----|--------|
-| **CMD+G** | First press: pick a game (🎲 Random / 2048 / Sudoku / Tetris). After that: toggle agent ↔ game. |
+| **CMD+G** | First press: pick a game. After that: toggle agent ↔ game. |
 | **CMD+SHIFT+P** | Re-open the picker to change the game. |
 
 > `CMD+SHIFT+G` is intentionally avoided — Kaku already binds it (lazygit).
 
-### Modes
-
-- **Manual** — press CMD+G to jump to the game. When any agent session finishes (`stop`), Paws brings you back to that session's tab.
-- **Auto** — once a game is open, the agent sends you to it when it starts working (`userPromptSubmit`) and back when it finishes. Hands-free.
-
-The game lives in a separate **tab**, so it's naturally full-window and immersive — your existing pane/split layout is never disturbed.
+The game lives in a separate **tab**, so it's naturally full-window and immersive — your existing pane/split layout is never disturbed. Switching is **manual by design**: the HUD (plus an optional completion sound) tells you when to come back, and you stay in control.
 
 ## Design philosophy
 
-Everything runs inside the terminal's own native extension layer. **No external controller scripts, no temp files, no shelling out to `kaku cli`.**
+Everything runs inside the terminal's own native extension layer. **No external controller scripts, no auto-switching magic, no shelling out to `kaku cli`.**
 
 ```
-Kiro hooks ─ one-line OSC 1337 user-var emitters (stop + userPromptSubmit)
+Kiro hook ─ one line: writes this session's state to /tmp/paws-sessions/<id>
        │
        ▼
-Kaku Lua ─ the brain. Reacts via user-var-changed, switches tabs via wezterm.mux,
+Kaku Lua ─ CMD+G / CMD+SHIFT+P only: spawn + toggle tabs via wezterm.mux,
        │   state in wezterm.GLOBAL — all in-process
        ▼
-Game tab ─ runs `paws`, a tiny Rust launcher that rotates among your
-       │   installed games (a different one each day)
+Game tab ─ the `paws` wrapper hosts the game centered in a PTY and renders a
+           live session-status HUD reading /tmp/paws-sessions/
 ```
 
-The terminal owns the tabs, so tab control lives in the terminal's Lua layer — not in a script reaching in from outside.
+The terminal owns the tabs, so tab control lives in the terminal's Lua layer — not in a script reaching in from outside. The agent's only job is to write its state to a file; nothing reaches in to move you around.
 
 ## Requirements
 
@@ -76,14 +76,15 @@ Claude Code can read it too.)
 
 1. Build the launcher: `cargo install --path .` (gives you `paws` on your PATH).
 2. Add [`lua/paws.lua`](lua/paws.lua) to your `~/.config/kaku/kaku.lua` (before `return config`).
-3. Wire [`hooks/kiro/paws-signal.sh`](hooks/kiro/paws-signal.sh) as `stop` and `userPromptSubmit` hooks in your Kiro agent config (use **absolute** paths, note the `done`/`busy` args):
+3. Wire [`hooks/kiro/paws-signal.sh`](hooks/kiro/paws-signal.sh) as `stop` and `userPromptSubmit` hooks in your Kiro agent config (use **absolute** paths, note the `done`/`busy` args). This just records each session's state for the HUD:
    ```json
    "hooks": {
      "stop":             [{ "command": "/absolute/path/to/paws-signal.sh done" }],
      "userPromptSubmit": [{ "command": "/absolute/path/to/paws-signal.sh busy" }]
    }
    ```
-4. `brew install c2048 nudoku vitetris`, then reload Kaku (CMD+Shift+R) and press **CMD+G**.
+   (Optional: add a sound on `stop`, e.g. `afplay /System/Library/Sounds/Glass.aiff`, as a completion chime.)
+4. `brew install vitetris` (Tetris) and/or `cargo install --git https://github.com/MisterBrookT/jump-high`, then reload Kaku (CMD+Shift+R) and press **CMD+G**.
 
 ## Roadmap
 
@@ -91,13 +92,13 @@ Claude Code can read it too.)
 - [x] Native tab-based switching (pure Lua, `wezterm.mux`, `wezterm.GLOBAL`)
 - [x] Game picker via `InputSelector` (CMD+G first run; CMD+SHIFT+P to re-pick)
 - [x] One-step install via agent skill
-- [x] Rust wrapper: hosts game in PTY, **centered** rendering, **pause overlay + 3s countdown** on agent finish
-- [x] [Jump High](https://github.com/MisterBrookT/jump-high) — a Doodle Jump-style terminal game (ratatui)
-- [x] Daily game rotation (Tetris / Jump High)
+- [x] Rust wrapper: hosts the game **centered** in a PTY
+- [x] Live multi-session status HUD (running / done, flashes on finish)
+- [x] [Jump High](https://github.com/MisterBrookT/jump-high) — a Jump King-style terminal game (ratatui)
 
 ### Next
 1. **More games** — grow the curated set with fun, interruptible games.
-2. **Claude Code support** — notification / stop hooks.
+2. **Claude Code support** — same per-session state hook.
 3. **`brew install paws`** — Homebrew formula for one-command install.
 
 ## Design doc

@@ -41,12 +41,13 @@ end). The snippet to insert is `lua/paws.lua` from this repo.
   add `config.keys = config.keys or {}` at the top of the inserted block.
 - Syntax-check afterward: `luac -p ~/.config/kaku/kaku.lua` (if `luac` exists).
 
-## 3. Wire the agent's state signals
+## 3. Wire the agent's state signals (for the status HUD)
 
-`hooks/kiro/paws-signal.sh busy|done` emits one OSC user var to the tty; Kaku's
-Lua handler does the tab switch. Wire two hooks: `userPromptSubmit` → `busy`
-(agent started) and `stop` → `done` (agent finished). **Use absolute paths** —
-`~` is not expanded in hook commands.
+`hooks/kiro/paws-signal.sh busy|done` records this session's state to
+`/tmp/paws-sessions/<id>` so the game's HUD can show which agents are running vs
+done. Wire two hooks: `userPromptSubmit` → `busy` (started) and `stop` → `done`
+(finished). It does NOT move you around — switching is always manual (CMD+G).
+**Use absolute paths** — `~` is not expanded in hook commands.
 
 ### Kiro CLI
 `kiro_default` is built-in and cannot be edited, so use a custom agent identical
@@ -61,18 +62,21 @@ to default except for the hooks:
      "useLegacyMcpJson": true,
      "hooks": {
        "userPromptSubmit": [{ "command": "<REPO>/hooks/kiro/paws-signal.sh busy" }],
-       "stop": [{ "command": "<REPO>/hooks/kiro/paws-signal.sh done" }]
+       "stop": [
+         { "command": "<REPO>/hooks/kiro/paws-signal.sh done" },
+         { "command": "afplay /System/Library/Sounds/Glass.aiff" }
+       ]
      }
    }
    ```
-   If the file exists, just add the hook entries (don't clobber other keys or
-   existing hooks).
+   The second `stop` hook is an optional completion chime (macOS). If the file
+   exists, just add the hook entries (don't clobber other keys or existing hooks).
 2. Tell the user to launch with `kiro-cli chat --agent default` (or update their
    shell alias) so the hooks are active.
 
 ### Claude Code (secondary / optional)
-Add `Stop` / notification hooks in the user's Claude settings that run the same
-`paws-signal.sh`. (Claude support is still being validated — flag it as such.)
+Add `Stop` / `UserPromptSubmit` hooks in the user's Claude settings that run the
+same `paws-signal.sh done|busy`. (Claude support is still being validated.)
 
 ## 4. Make the signal script executable
 

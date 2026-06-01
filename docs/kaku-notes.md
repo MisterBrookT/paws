@@ -30,9 +30,11 @@ the Lua, to avoid re-discovering these.
 - `kaku cli list --format json` does **not** include `user_vars`, so you can't verify
   OSC user vars that way.
 
-## Agent → terminal signal (UNVERIFIED)
-- The plan: Kiro hooks emit OSC 1337 `SetUserVar` to the tty; Kaku fires the Lua
-  `user-var-changed` event. **Not yet confirmed working on device** — the hook may lack a
-  usable `/dev/tty`, or Kaku may handle the sequence differently. Next step: confirm via a
-  `wezterm.log_info` probe in the handler + the Kaku GUI log
-  (`~/.local/share/kaku/kaku-gui-log-*.txt`).
+## Agent → terminal signal (history)
+- OSC 1337 `SetUserVar` from a Kiro hook → Kaku `user-var-changed` Lua event DOES
+  work (verified: `paws_agent_busy`/`paws_agent_done` showed up in the GUI log).
+- We originally used it for auto tab-switching, but **dropped auto-switch by design**
+  (it was the main complexity/bug source and yanked the user mid-game).
+- Now: the hook just writes per-session state to `/tmp/paws-sessions/<id>` (busy|done),
+  the wrapper renders a status HUD from it, and the user switches manually with CMD+G.
+  No OSC, no `user-var-changed` handler. Simpler and predictable.

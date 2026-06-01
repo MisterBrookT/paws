@@ -5,9 +5,8 @@
 -- The game lives in its OWN TAB (full-window, never disturbs your panes).
 --   CMD+G        : first time → pick a game; after that → toggle agent ↔ game
 --   CMD+SHIFT+P  : re-open the picker to change the game
--- The agent emits OSC user-vars as it works:
---   paws_agent_busy (started)  → if a game is open, jump to it
---   paws_agent_done (finished) → jump back to the session that finished
+-- Manual switching only. The game shows a session-status HUD (running/done)
+-- so you decide when to flip back — no auto-jumping.
 --
 -- NOTE: CMD+SHIFT+G is intentionally NOT used — Kaku already binds it (lazygit).
 -- Kaku does not auto-reload config; press CMD+Shift+R after editing.
@@ -16,10 +15,8 @@ local wezterm = require 'wezterm'
 
 local PAWS_SHELL = os.getenv('SHELL') or '/bin/sh'  -- login shell, so PATH resolves
 local PAWS_CHOICES = {
-  { label = '🎲 Random — a different game each day', id = 'paws' },
-  { label = '2048', id = '2048' },
-  { label = 'Nudoku (Sudoku)', id = 'nudoku' },
-  { label = 'Tetris', id = 'tetris' },
+  { label = 'Tetris (俄罗斯方块)', id = 'tetris' },
+  { label = 'Jump High (跳跳跳)', id = 'jump-high' },
 }
 
 -- wezterm.mux.get_tab raises if the tab is gone; make it return nil instead
@@ -90,14 +87,3 @@ table.insert(config.keys, {
     end)
   end),
 })
-
-wezterm.on('user-var-changed', function(window, pane, name, value)
-  if name == 'paws_agent_done' then
-    wezterm.GLOBAL.paws_agent_tab = pane:tab():tab_id()
-    pane:tab():activate()
-  elseif name == 'paws_agent_busy' then
-    wezterm.GLOBAL.paws_agent_tab = pane:tab():tab_id()
-    local gt = paws_tab(wezterm.GLOBAL.paws_game_tab)
-    if gt then gt:activate() end
-  end
-end)
