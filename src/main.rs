@@ -207,7 +207,7 @@ fn pick_game_menu(installed: &[&Game]) -> io::Result<Option<String>> {
             KeyCode::Down | KeyCode::Char('j') => {
                 selected = (selected + 1) % labels.len();
             }
-            KeyCode::Enter => match &items[selected] {
+            KeyCode::Enter | KeyCode::Char(' ') => match &items[selected] {
                 Item::Game(_, _, cmd) => break Some(cmd.clone()),
                 Item::Random => break Some(resolve_random(installed)),
                 Item::Settings => in_settings = true,
@@ -254,7 +254,7 @@ fn draw_menu(f: &mut Frame, labels: &[String], selected: usize) {
 
     lines.push(Line::raw(""));
     lines.push(Line::from(Span::styled(
-        "↑↓ move · Enter play · q quit",
+        "↑↓ move · Enter/Space play · q quit",
         Style::default().fg(Color::Rgb(100, 100, 120)),
     )));
     lines.push(Line::from(Span::styled(
