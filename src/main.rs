@@ -8,7 +8,11 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crossterm::{
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    event::{KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags},
+    terminal::{
+        disable_raw_mode, enable_raw_mode, supports_keyboard_enhancement, EnterAlternateScreen,
+        LeaveAlternateScreen,
+    },
     ExecutableCommand,
 };
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
@@ -151,8 +155,19 @@ fn main() -> io::Result<()> {
         running_reader.store(false, Ordering::SeqCst);
     });
 
-    // Input thread: raw stdin → PTY. Passthrough preserves OS key-repeat, so
-    // "hold to charge" games receive a steady stream of bytes while a key is held.
+    // Setup terminal. Enable the kitty keyboard protocol ONLY for our own
+    // crossterm game that needs real key-release events (jump-high). Other games
+    // (e.g. tetris) expect legacy bytes, so we leave it off for them.
+    enable_raw_mode()?;
+    let kitty = game_cmd == "jump-high" && supports_keyboard_enhancement().unwrap_or(false);
+    if kitty {
+        let _ = io::stdout().execute(PushKeyboardEnhancementFlags(
+            KeyboardEnhancementFlags::REPORT_EVENT_TYPES,
+        ));
+    }
+
+    // Input thread: raw stdin → PTY. Passthrough preserves key-repeat / kitty
+    // sequences so the hosted game gets the full key stream.
     std::thread::spawn(move || {
         let mut stdin = io::stdin();
         let mut buf = [0u8; 1024];
@@ -169,8 +184,6 @@ fn main() -> io::Result<()> {
         }
     });
 
-    // Setup terminal
-    enable_raw_mode()?;
     io::stdout().execute(EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
@@ -178,8 +191,11 @@ fn main() -> io::Result<()> {
     let result = run_loop(&mut terminal, &parser, &running);
 
     // Cleanup
-    disable_raw_mode()?;
+    if kitty {
+        let _ = io::stdout().execute(PopKeyboardEnhancementFlags);
+    }
     io::stdout().execute(LeaveAlternateScreen)?;
+    disable_raw_mode()?;
     drop(pair.master);
 
     result
