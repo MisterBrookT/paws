@@ -24,6 +24,20 @@ the Lua, to avoid re-discovering these.
 - Zooming a pane (`set_zoomed`) hides *all* sibling panes in the tab — bad when the user
   has other sessions split in the same tab. Use a separate **tab** for the game instead.
 
+## Wrapper input / PTY (the `paws` Rust wrapper hosts games)
+- The wrapper does **raw stdin → PTY passthrough** in a thread (no crossterm event
+  decoding/filtering). Decoding+filtering dropped `Repeat`/`Release` events, so held
+  keys reached games only once → "hold to charge" auto-fired. Raw bytes fix it.
+- **Key-release needs the kitty keyboard protocol.** A byte stream alone can't tell a
+  quick tap from the start of a hold (first ~250ms is identical). Fix:
+  `PushKeyboardEnhancementFlags(REPORT_EVENT_TYPES)` so Kaku sends press/repeat/release;
+  jump-high fires the jump on Release (snappy taps, small tap = small hop).
+- **Gate kitty to crossterm-aware games only.** Enabling it makes Kaku encode ALL keys
+  in kitty form; non-crossterm games (tetris/vitetris, C) can't parse them and break.
+  The wrapper enables kitty ONLY when `game_cmd == "jump-high"`.
+- Enable kitty AFTER `enable_raw_mode` but BEFORE the stdin-passthrough thread starts
+  (the `supports_keyboard_enhancement()` query reply arrives on stdin).
+
 ## CLI
 - `kaku cli` exists (hidden/experimental) with WezTerm-style subcommands
   (`list`, `split-pane`, `spawn`, `activate-tab`, `zoom-pane`, `kill-pane`, …).
