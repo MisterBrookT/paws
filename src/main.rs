@@ -42,7 +42,7 @@ struct Game {
 
 const GAMES: &[Game] = &[
     Game { name: "Tetris", cmd: "tetris", brew_hint: "brew install vitetris" },
-    Game { name: "Jump High", cmd: "jump-high", brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games" },
+    Game { name: "Dog Jump", cmd: "jump-high", brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games" },
     Game { name: "Pinball", cmd: "pinball", brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games" },
     Game { name: "Earth Online", cmd: "earth-online", brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games" },
     Game { name: "Knowledge", cmd: "learn", brew_hint: "cargo install --git https://github.com/MisterBrookT/paws-games" },
