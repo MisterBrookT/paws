@@ -468,6 +468,13 @@ fn draw_hud(f: &mut Frame) {
                 let _ = fs::remove_file(&path);
                 continue;
             }
+            // Live session: "done" = waiting, anything else (incl. a transient
+            // write) = running, so a session never blinks out of the counts.
+            if state == "done" {
+                done += 1;
+            } else {
+                running += 1;
+            }
         } else {
             // Legacy file without a PID: fall back to mtime staleness.
             let stale = entry
@@ -480,12 +487,11 @@ fn draw_hud(f: &mut Frame) {
             if stale {
                 continue;
             }
-        }
-
-        match state {
-            "busy" => running += 1,
-            "done" => done += 1,
-            _ => {}
+            match state {
+                "busy" => running += 1,
+                "done" => done += 1,
+                _ => {}
+            }
         }
     }
 
