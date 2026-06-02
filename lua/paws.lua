@@ -68,6 +68,6 @@ table.insert(config.keys, {
   key = 'h',
   mods = 'CMD',
   action = wezterm.action_callback(function()
-    os.execute("open 'https://github.com/MisterBrookT/paws'")
+    os.execute("open 'https://github.com/interesting-vibe-coding/paws'")
   end),
 })
