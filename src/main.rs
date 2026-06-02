@@ -313,7 +313,7 @@ fn pick_game_menu(installed: &[&Game]) -> io::Result<Option<String>> {
 
 fn draw_menu(f: &mut Frame, labels: &[String], selected: usize) {
     let area = f.area();
-    f.render_widget(Block::default().style(Style::default().bg(Color::Rgb(18, 18, 26))), area);
+    f.render_widget(Block::default().style(Style::default().bg(Color::Rgb(30, 23, 18))), area);
 
     let box_w = 44u16.min(area.width.saturating_sub(2));
     let box_h = (labels.len() as u16 + 9).min(area.height.saturating_sub(2));
@@ -327,16 +327,16 @@ fn draw_menu(f: &mut Frame, labels: &[String], selected: usize) {
         )),
         Line::from(Span::styled(
             "your agent's coffee break",
-            Style::default().fg(Color::Rgb(120, 120, 140)),
+            Style::default().fg(Color::Rgb(165, 140, 115)),
         )),
         Line::raw(""),
     ];
 
     for (i, label) in labels.iter().enumerate() {
         let (style, prefix) = if i == selected {
-            (Style::default().fg(Color::Rgb(120, 220, 160)).add_modifier(Modifier::BOLD), "▸  ")
+            (Style::default().fg(Color::Rgb(255, 215, 140)).add_modifier(Modifier::BOLD), "▸  ")
         } else {
-            (Style::default().fg(Color::Rgb(180, 180, 195)), "   ")
+            (Style::default().fg(Color::Rgb(195, 175, 145)), "   ")
         };
         lines.push(Line::from(Span::styled(format!("{prefix}{label}"), style)));
     }
@@ -344,24 +344,24 @@ fn draw_menu(f: &mut Frame, labels: &[String], selected: usize) {
     lines.push(Line::raw(""));
     lines.push(Line::from(Span::styled(
         "↑↓ move · Enter/Space play · q quit",
-        Style::default().fg(Color::Rgb(100, 100, 120)),
+        Style::default().fg(Color::Rgb(175, 150, 120)),
     )));
     lines.push(Line::from(Span::styled(
         "⌘G switch · ⌘⇧P re-pick · ⌘H help",
-        Style::default().fg(Color::Rgb(90, 90, 110)),
+        Style::default().fg(Color::Rgb(155, 132, 105)),
     )));
 
     let para = Paragraph::new(lines).alignment(Alignment::Center).block(
         Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Rgb(90, 80, 120))),
+            .border_style(Style::default().fg(Color::Rgb(150, 120, 70))),
     );
     f.render_widget(para, content);
 }
 
 fn draw_settings(f: &mut Frame, hours: u64) {
     let area = f.area();
-    f.render_widget(Block::default().style(Style::default().bg(Color::Rgb(18, 18, 26))), area);
+    f.render_widget(Block::default().style(Style::default().bg(Color::Rgb(30, 23, 18))), area);
 
     let content = centered_rect(44u16.min(area.width.saturating_sub(2)), 11, area);
     let plural = if hours == 1 { "hour" } else { "hours" };
@@ -374,22 +374,22 @@ fn draw_settings(f: &mut Frame, hours: u64) {
         Line::raw(""),
         Line::from(Span::styled(
             "Random rotation",
-            Style::default().fg(Color::Rgb(180, 180, 195)),
+            Style::default().fg(Color::Rgb(210, 190, 160)),
         )),
         Line::from(Span::styled(
             format!("every  {hours}  {plural}"),
-            Style::default().fg(Color::Rgb(120, 220, 160)).add_modifier(Modifier::BOLD),
+            Style::default().fg(Color::Rgb(255, 215, 140)).add_modifier(Modifier::BOLD),
         )),
         Line::raw(""),
         Line::from(Span::styled(
             "←  −     +  →     Enter back",
-            Style::default().fg(Color::Rgb(100, 100, 120)),
+            Style::default().fg(Color::Rgb(175, 150, 120)),
         )),
     ];
     let para = Paragraph::new(lines).alignment(Alignment::Center).block(
         Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Rgb(90, 80, 120))),
+            .border_style(Style::default().fg(Color::Rgb(150, 120, 70))),
     );
     f.render_widget(para, content);
 }
