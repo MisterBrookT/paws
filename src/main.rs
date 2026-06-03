@@ -340,37 +340,36 @@ fn pick_game_menu(games: &[Game]) -> io::Result<Option<String>> {
                     install_sel = (install_sel + 1) % games.len();
                 }
                 KeyCode::Esc | KeyCode::Char('q') => screen = Screen::Menu,
-                KeyCode::Enter | KeyCode::Char(' ') => {
-                    if !installed[install_sel] {
-                        let game = &games[install_sel];
-                        disable_raw_mode()?;
-                        io::stdout().execute(LeaveAlternateScreen)?;
+                KeyCode::Enter | KeyCode::Char(' ') if !installed[install_sel] => {
+                    let game = &games[install_sel];
+                    disable_raw_mode()?;
+                    io::stdout().execute(LeaveAlternateScreen)?;
 
-                        println!("\n  Installing {}…", game.name);
-                        println!("  $ {}\n", game.install);
+                    println!("\n  Installing {}…", game.name);
+                    println!("  $ {}\n", game.install);
 
-                        let status = std::process::Command::new("sh")
-                            .arg("-c")
-                            .arg(&game.install)
-                            .status();
+                    let status = std::process::Command::new("sh")
+                        .arg("-c")
+                        .arg(&game.install)
+                        .status();
 
-                        match status {
-                            Ok(s) if s.success() => println!("\n  ✓ {} installed!", game.name),
-                            Ok(s) => {
-                                println!("\n  ✗ Install failed (exit {})", s.code().unwrap_or(-1))
-                            }
-                            Err(e) => println!("\n  ✗ Install error: {e}"),
+                    match status {
+                        Ok(s) if s.success() => println!("\n  ✓ {} installed!", game.name),
+                        Ok(s) => {
+                            println!("\n  ✗ Install failed (exit {})", s.code().unwrap_or(-1))
                         }
-                        print!("  Press Enter to continue…");
-                        let _ = io::stdout().flush();
-                        let _ = io::stdin().lock().read_line(&mut String::new());
-
-                        enable_raw_mode()?;
-                        io::stdout().execute(EnterAlternateScreen)?;
-                        terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
-                        installed = games.iter().map(|g| is_installed(&g.cmd)).collect();
+                        Err(e) => println!("\n  ✗ Install error: {e}"),
                     }
+                    print!("  Press Enter to continue…");
+                    let _ = io::stdout().flush();
+                    let _ = io::stdin().lock().read_line(&mut String::new());
+
+                    enable_raw_mode()?;
+                    io::stdout().execute(EnterAlternateScreen)?;
+                    terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
+                    installed = games.iter().map(|g| is_installed(&g.cmd)).collect();
                 }
+                KeyCode::Enter | KeyCode::Char(' ') => {}
                 _ => {}
             },
             Screen::Menu => match key.code {
