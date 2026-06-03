@@ -35,11 +35,17 @@ Supports **Kiro CLI**, **Claude Code**, and **Codex CLI** — see the [install s
 ### 2. Homebrew
 
 ```bash
-brew install --HEAD interesting-vibe-coding/paws/paws       # the paws binary
-brew install --HEAD interesting-vibe-coding/paws/paws-games  # all three games
+brew tap interesting-vibe-coding/paws
+brew install paws        # the paws binary
+brew install paws-games  # all games
 ```
 
-Full `brew tap interesting-vibe-coding/paws && brew install paws` is pending a tagged release — see [Formula/README.md](Formula/README.md) for details.
+Or install the latest development build:
+
+```bash
+brew install --HEAD interesting-vibe-coding/paws/paws
+brew install --HEAD interesting-vibe-coding/paws/paws-games
+```
 
 ### 3. Manual
 
