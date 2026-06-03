@@ -1,5 +1,6 @@
--- Paws 🐾 — native Kaku/WezTerm integration.
--- Add this to ~/.config/kaku/kaku.lua (before `return config`).
+-- Paws 🐾 — native Kaku / WezTerm integration.
+-- Add this to ~/.config/kaku/kaku.lua (Kaku) or ~/.config/wezterm/wezterm.lua (WezTerm),
+-- before `return config`. No code changes needed — all APIs are standard WezTerm.
 -- Everything runs in-process: no external scripts, no temp files, no `kaku cli`.
 --
 -- The game lives in its OWN TAB (full-window, never disturbs your panes).

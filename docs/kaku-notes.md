@@ -1,7 +1,21 @@
-# Kaku integration notes
+# Kaku & WezTerm integration notes
 
-Hard-won facts about Kaku (a WezTerm fork) relevant to Paws. Read before touching
+Hard-won facts about Kaku and WezTerm relevant to Paws. Read before touching
 the Lua, to avoid re-discovering these.
+
+## WezTerm compatibility
+
+`lua/paws.lua` uses only **standard WezTerm Lua APIs** — every call
+(`wezterm.mux`, `wezterm.GLOBAL`, `wezterm.action_callback`, `window:mux_window():spawn_tab`, etc.)
+works identically in WezTerm. No code changes are needed.
+
+| Difference | Kaku | WezTerm |
+|-----------|------|---------|
+| Config path | `~/.config/kaku/kaku.lua` | `~/.config/wezterm/wezterm.lua` |
+| Auto-reload on save | ✗ — must press **CMD+Shift+R** | ✓ automatic |
+| CMD+SHIFT+G | Taken (lazygit) | Free — but Paws uses CMD+G anyway |
+
+The WezTerm install is identical to Kaku: paste `lua/paws.lua` into your config before `return config`.
 
 ## Keybindings
 - **No auto-reload.** Kaku does not reload `kaku.lua` on save. Press **CMD+Shift+R**
