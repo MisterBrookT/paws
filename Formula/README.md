@@ -31,7 +31,7 @@ inside `Formula/` in that tap repo.
    Copy `paws.rb` and `paws-games.rb` into its `Formula/` directory.
 2. **Tag releases** — create a `v0.3.0` tag in both repos:
    - `interesting-vibe-coding/paws`
-   - `MisterBrookT/paws-games`
+   - `interesting-vibe-coding/paws-games`
 3. **Fill in sha256** — download each tarball and run `shasum -a 256 <file>`,
    then paste the hash into the corresponding formula's `sha256` field.
 4. **Push the tap repo** — once formulae have valid sha256 values, the stable

@@ -45,9 +45,9 @@ Full `brew tap interesting-vibe-coding/paws && brew install paws` is pending a t
 
 ```bash
 cargo install --path .                                       # build paws
-cargo install --git https://github.com/MisterBrookT/paws-games --bin jump-high
-cargo install --git https://github.com/MisterBrookT/paws-games --bin earth-online
-cargo install --git https://github.com/MisterBrookT/paws-games --bin tetris
+cargo install --git https://github.com/interesting-vibe-coding/paws-games --bin jump-high
+cargo install --git https://github.com/interesting-vibe-coding/paws-games --bin earth-online
+cargo install --git https://github.com/interesting-vibe-coding/paws-games --bin tetris
 ```
 
 Then add [`lua/paws.lua`](lua/paws.lua) to your `~/.config/kaku/kaku.lua` (before `return config`) and wire hooks for your agent (see [`hooks/`](hooks/) for reference configs). Reload Kaku (CMD+Shift+R).
@@ -60,7 +60,7 @@ Then add [`lua/paws.lua`](lua/paws.lua) to your `~/.config/kaku/kaku.lua` (befor
 | 🌍 Earth Online | `earth-online` | Real-life side quests to run while your agent works |
 | 🧱 Tetris | `tetris` | Classic block-stacking with levels and scoring |
 
-Don't see enough? Install more games right from the in-app picker — uninstalled games show a one-click install option. Browse the community game library at [paws-games](https://github.com/MisterBrookT/paws-games).
+Don't see enough? Install more games right from the in-app picker — uninstalled games show a one-click install option. Browse the community game library at [paws-games](https://github.com/interesting-vibe-coding/paws-games).
 
 ## How it works
 

@@ -1,15 +1,15 @@
 class PawsGames < Formula
   desc "Community game library for Paws — Dog Jump, Earth Online, Tetris"
-  homepage "https://github.com/MisterBrookT/paws-games"
+  homepage "https://github.com/interesting-vibe-coding/paws-games"
   license "MIT"
 
   stable do
-    url "https://github.com/MisterBrookT/paws-games/archive/refs/tags/v0.3.0.tar.gz"
+    url "https://github.com/interesting-vibe-coding/paws-games/archive/refs/tags/v0.3.0.tar.gz"
     sha256 ""  # TODO: fill after tagging v0.3.0
     version "0.3.0"
   end
 
-  head "https://github.com/MisterBrookT/paws-games.git", branch: "main"
+  head "https://github.com/interesting-vibe-coding/paws-games.git", branch: "main"
 
   depends_on "rust" => :build
 

@@ -25,9 +25,9 @@ it and install at least one game to start:
 
 ```bash
 cargo install --path .                                          # builds `paws` onto PATH
-cargo install --git https://github.com/MisterBrookT/paws-games --bin jump-high    # Dog Jump
-cargo install --git https://github.com/MisterBrookT/paws-games --bin earth-online # Earth Online
-cargo install --git https://github.com/MisterBrookT/paws-games --bin tetris       # Tetris
+cargo install --git https://github.com/interesting-vibe-coding/paws-games --bin jump-high    # Dog Jump
+cargo install --git https://github.com/interesting-vibe-coding/paws-games --bin earth-online # Earth Online
+cargo install --git https://github.com/interesting-vibe-coding/paws-games --bin tetris       # Tetris
 paws --list                                                     # confirm which games are detected
 ```
 

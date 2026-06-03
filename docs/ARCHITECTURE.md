@@ -64,7 +64,7 @@ id = "jump-high"
 name = "Dog Jump"
 icon = "🐕"
 cmd = "jump-high"
-install = "cargo install --git https://github.com/MisterBrookT/paws-games --bin jump-high"
+install = "cargo install --git https://github.com/interesting-vibe-coding/paws-games --bin jump-high"
 description = "Jump King-style platformer — one dog, gravity, no mercy."
 ```
 
@@ -87,4 +87,4 @@ Games are **standalone terminal binaries** on `PATH`. The Paws host:
 | Must exit cleanly on stdin EOF | Paws drops the PTY on quit |
 | Binary name = the `cmd` field in registry | Discovery via PATH scan |
 
-For the full contract with code examples and tips, see the paws-games repo: [`docs/GAME_CONTRACT.md`](https://github.com/MisterBrookT/paws-games/blob/main/docs/GAME_CONTRACT.md).
+For the full contract with code examples and tips, see the paws-games repo: [`docs/GAME_CONTRACT.md`](https://github.com/interesting-vibe-coding/paws-games/blob/main/docs/GAME_CONTRACT.md).

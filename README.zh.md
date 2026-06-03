@@ -45,9 +45,9 @@ brew install --HEAD interesting-vibe-coding/paws/paws-games  # 三个游戏
 
 ```bash
 cargo install --path .                                       # 编译 paws
-cargo install --git https://github.com/MisterBrookT/paws-games --bin jump-high
-cargo install --git https://github.com/MisterBrookT/paws-games --bin earth-online
-cargo install --git https://github.com/MisterBrookT/paws-games --bin tetris
+cargo install --git https://github.com/interesting-vibe-coding/paws-games --bin jump-high
+cargo install --git https://github.com/interesting-vibe-coding/paws-games --bin earth-online
+cargo install --git https://github.com/interesting-vibe-coding/paws-games --bin tetris
 ```
 
 然后将 [`lua/paws.lua`](lua/paws.lua) 添加到 `~/.config/kaku/kaku.lua`（`return config` 之前），并为你的 Agent 配置 hooks（参考 [`hooks/`](hooks/) 目录）。重载 Kaku（CMD+Shift+R）。
@@ -60,7 +60,7 @@ cargo install --git https://github.com/MisterBrookT/paws-games --bin tetris
 | 🌍 Earth Online | `earth-online` | Agent 工作时的现实世界支线任务 |
 | 🧱 Tetris | `tetris` | 经典方块消除，带等级和计分 |
 
-不够玩？直接在游戏选择菜单里安装更多——未安装的游戏会显示一键安装选项。浏览社区游戏库：[paws-games](https://github.com/MisterBrookT/paws-games)。
+不够玩？直接在游戏选择菜单里安装更多——未安装的游戏会显示一键安装选项。浏览社区游戏库：[paws-games](https://github.com/interesting-vibe-coding/paws-games)。
 
 ## 工作原理
 
