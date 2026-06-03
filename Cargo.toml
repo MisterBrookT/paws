@@ -1,6 +1,6 @@
 [package]
 name = "paws"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 description = "Play games in your terminal while your AI coding agent works — a live status HUD tells you when to come back"
 license = "MIT"
