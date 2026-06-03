@@ -1,6 +1,6 @@
 ---
 name: paws-install
-description: Install Paws 🐾 (terminal companion for AI coding agents) into the user's Kaku terminal and their agent (Kiro CLI, Claude Code, or Codex CLI). Use this when the user asks to install, set up, or wire up Paws. Performs the Kaku Lua merge, game install, and agent hook wiring — all idempotently.
+description: Install Paws 🐾 (terminal companion for AI coding agents) into the user's Kaku or WezTerm terminal and their agent (Kiro CLI, Claude Code, or Codex CLI). Use this when the user asks to install, set up, or wire up Paws. Performs the Lua merge, game install, and agent hook wiring — all idempotently.
 ---
 
 # Installing Paws 🐾
@@ -11,8 +11,12 @@ You are installing Paws for the user. Work from a local clone of this repo
 
 ## 0. Preconditions
 
-- Confirm the terminal is **Kaku** (`which kaku`). If not, tell the user Paws
-  currently requires Kaku and stop.
+- Confirm the terminal is **Kaku** (`which kaku`) or **WezTerm** (`which wezterm`).
+  Both are supported — the same `lua/paws.lua` works in both without modification.
+  If neither is installed, ask the user to install one first and stop.
+- Determine the terminal type — it affects the config path in Step 2:
+  - Kaku: `~/.config/kaku/kaku.lua`
+  - WezTerm: `~/.config/wezterm/wezterm.lua`
 - Note the repo root (absolute path) — you'll need it for hook paths.
   **All hook paths in config files must be absolute** — `~` is not expanded
   by any of the three agents.
@@ -44,18 +48,22 @@ Any games not installed now can be installed later directly from the in-app
 game picker (uninstalled entries show "⤓ install" and run the install command
 on Enter).
 
-## 2. Merge the Lua into the Kaku config
+## 2. Merge the Lua into the terminal config
 
-The Kaku config is `~/.config/kaku/kaku.lua` (it returns a `config` table at the
-end). The snippet to insert is `lua/paws.lua` from this repo.
+The terminal config returns a `config` table at the end. The snippet to insert is
+`lua/paws.lua` from this repo — it works identically in Kaku and WezTerm.
 
-- If `kaku.lua` already contains `Paws 🐾` (the marker comment), skip — already installed.
+- **Kaku:** config is at `~/.config/kaku/kaku.lua`
+- **WezTerm:** config is at `~/.config/wezterm/wezterm.lua`
+
+Steps:
+- If the config already contains `Paws 🐾` (the marker comment), skip — already installed.
 - Otherwise insert the **body** of `lua/paws.lua` (everything except its
   `local wezterm = require 'wezterm'` line, which the config already has)
   **immediately before** the final `return config` line.
 - Ensure `config.keys` exists before the insert: if the config never sets it,
   add `config.keys = config.keys or {}` at the top of the inserted block.
-- Syntax-check afterward: `luac -p ~/.config/kaku/kaku.lua` (if `luac` exists).
+- Syntax-check afterward: `luac -p <config-path>` (if `luac` exists).
 
 ## 3. Wire the agent's state signals (for the status HUD)
 
@@ -192,16 +200,19 @@ chmod +x <REPO>/hooks/kiro/paws-pause.sh
 
 ## 5. Finish
 
-Tell the user to **reload Kaku (CMD+Shift+R)** — Kaku does NOT auto-reload — then:
+- **Kaku users:** Press **CMD+Shift+R** to reload — Kaku does NOT auto-reload on save.
+- **WezTerm users:** Config reloads automatically on save — no action needed.
+
+Then:
 - **CMD+G** — opens the game tab (a centered menu: games · 🎲 Random · ⚙ Settings); after that it toggles agent ↔ game.
 - **CMD+SHIFT+P** — close the game tab and re-open the menu.
 - **CMD+H** — open the Paws repo in your browser (to file an issue / say hi).
 
-(Don't use CMD+SHIFT+G — Kaku already binds it to lazygit.)
+(Kaku users: don't use CMD+SHIFT+G — Kaku already binds it to lazygit.)
 
 ## Verify
 
-- `luac -p ~/.config/kaku/kaku.lua` passes (if luac is available).
+- `luac -p <config-path>` passes (if luac is available).
 - `paws --list` shows at least one installed game.
 - The hook paths in the agent config are absolute and the scripts are executable.
 - Quick smoke test (Claude Code / Codex): pipe mock JSON to the hook and check

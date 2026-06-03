@@ -4,7 +4,7 @@
 
 # 🐾 Paws
 
-[![CI](https://github.com/interesting-vibe-coding/paws/actions/workflows/ci.yml/badge.svg)](https://github.com/interesting-vibe-coding/paws/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Built for Kaku](https://img.shields.io/badge/Built_for-Kaku-blue)](https://github.com/tw93/kaku) [![Made with Lua & Rust](https://img.shields.io/badge/Made_with-Lua_&_Rust-orange)]() [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/interesting-vibe-coding/paws/pulls) [![GitHub Stars](https://img.shields.io/github/stars/interesting-vibe-coding/paws?style=flat&color=yellow)](https://github.com/interesting-vibe-coding/paws/stargazers)
+[![CI](https://github.com/interesting-vibe-coding/paws/actions/workflows/ci.yml/badge.svg)](https://github.com/interesting-vibe-coding/paws/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Works with Kaku & WezTerm](https://img.shields.io/badge/Works_with-Kaku_%26_WezTerm-blue)](https://wezfurlong.org/wezterm/) [![Made with Lua & Rust](https://img.shields.io/badge/Made_with-Lua_&_Rust-orange)]() [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/interesting-vibe-coding/paws/pulls) [![GitHub Stars](https://img.shields.io/github/stars/interesting-vibe-coding/paws?style=flat&color=yellow)](https://github.com/interesting-vibe-coding/paws/stargazers)
 
 Agent 工作时尽情玩，需要你时一眼就看到。
 
@@ -50,7 +50,9 @@ cargo install --git https://github.com/interesting-vibe-coding/paws-games --bin 
 cargo install --git https://github.com/interesting-vibe-coding/paws-games --bin tetris
 ```
 
-然后将 [`lua/paws.lua`](lua/paws.lua) 添加到 `~/.config/kaku/kaku.lua`（`return config` 之前），并为你的 Agent 配置 hooks（参考 [`hooks/`](hooks/) 目录）。重载 Kaku（CMD+Shift+R）。
+然后将 [`lua/paws.lua`](lua/paws.lua) 添加到终端配置中（`return config` 之前），并为你的 Agent 配置 hooks（参考 [`hooks/`](hooks/) 目录）。
+- **Kaku：** `~/.config/kaku/kaku.lua` — 重载需按 CMD+Shift+R
+- **WezTerm：** `~/.config/wezterm/wezterm.lua` — 保存后自动重载
 
 ## 游戏
 
