@@ -58,3 +58,11 @@ icon = "🧱"
 cmd = "breakout"
 install = "cargo install --git https://github.com/interesting-vibe-coding/paws-games --bin breakout"
 description = "Smash bricks with a bouncing ball — power-ups, hard bricks, 3 lives."
+
+[[game]]
+id = "vibe"
+name = "Vibe Clicker"
+icon = "✨"
+cmd = "vibe"
+install = "cargo install --git https://github.com/interesting-vibe-coding/paws-games --bin vibe"
+description = "Idle clicker — tap for vibes, buy upgrades, chill while your agent codes."
