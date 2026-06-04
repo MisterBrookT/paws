@@ -163,6 +163,74 @@ fn get_ppid_of(pid: i32) -> i32 {
         .unwrap_or(0)
 }
 
+fn hooks_present(path: &std::path::Path) -> bool {
+    fs::read_to_string(path)
+        .map(|s| s.contains("paws signal"))
+        .unwrap_or(false)
+}
+
+fn try_write_hooks(path: &std::path::Path, snippet: &str) -> io::Result<bool> {
+    if !path.exists() {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(path, snippet)?;
+        return Ok(true);
+    }
+    let content = fs::read_to_string(path)?;
+    if content.trim() == "{}" || content.trim().is_empty() {
+        fs::write(path, snippet)?;
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+fn handle_setup() -> io::Result<()> {
+    let paws_ok = is_installed("paws");
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    let settings = home.join(".claude/settings.json");
+
+    let hook_snippet = r#"{
+  "hooks": {
+    "PreToolUse": [{"matcher": "", "hooks": [{"type": "command", "command": "paws signal busy"}]}],
+    "PostToolUse": [{"matcher": "", "hooks": [{"type": "command", "command": "paws signal done"}]}]
+  }
+}"#;
+
+    println!("🐾  Paws Setup\n");
+
+    let mark = if paws_ok { "✓" } else { "✗" };
+    println!("{mark}  paws on PATH");
+    if !paws_ok {
+        println!("    brew install interesting-vibe-coding/paws/paws");
+        println!("    — or —");
+        println!("    cargo install --git https://github.com/interesting-vibe-coding/paws\n");
+    } else {
+        println!();
+    }
+
+    let hooks_ok = hooks_present(&settings);
+    let mark = if hooks_ok { "✓" } else { "○" };
+    println!("{mark}  Claude Code hooks  ({})\n", settings.display());
+
+    if !hooks_ok {
+        if try_write_hooks(&settings, hook_snippet)? {
+            println!("    ✓ Hooks written to {}.\n", settings.display());
+        } else {
+            println!("    Merge this into ~/.claude/settings.json:\n");
+            for line in hook_snippet.lines() {
+                println!("    {line}");
+            }
+            println!();
+        }
+    }
+
+    println!("    Test: start a Claude session, then run `paws scan`.");
+    println!("          The HUD will show your agent's status in the top-right corner.\n");
+
+    Ok(())
+}
+
 fn handle_scan() -> io::Result<()> {
     let dir = PathBuf::from(SESSIONS_DIR);
     fs::create_dir_all(&dir)?;
@@ -226,6 +294,7 @@ fn main() -> io::Result<()> {
     match env::args().nth(1).as_deref() {
         Some("signal") => return handle_signal(),
         Some("scan") => return handle_scan(),
+        Some("setup") => return handle_setup(),
         _ => {}
     }
 
@@ -1004,7 +1073,7 @@ mod tests {
     #[test]
     fn load_registry_parses_bundled() {
         let games = load_registry();
-        assert_eq!(games.len(), 7);
+        assert_eq!(games.len(), 8);
         assert_eq!(games[0].cmd, "jump-high");
         assert_eq!(games[1].cmd, "earth-online");
         assert_eq!(games[2].cmd, "tetris");
@@ -1012,5 +1081,6 @@ mod tests {
         assert_eq!(games[4].cmd, "2048");
         assert_eq!(games[5].cmd, "space-invaders");
         assert_eq!(games[6].cmd, "breakout");
+        assert_eq!(games[7].cmd, "vibe");
     }
 }
